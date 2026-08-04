@@ -1,115 +1,51 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-
-<title>
-❄️ Sn0wfall Secrecy
-</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link rel="stylesheet" href="style.css">
-
+    <meta charset="UTF-8">
+    <title>❄️ Snowfall Secrecy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
 </head>
-
-
 <body>
-
 
 <div id="snow"></div>
 
+<div id="callBanner" class="call-banner" style="display: none;">
+    <p><strong id="callerName">User</strong> is calling...</p>
+    <div class="banner-buttons">
+        <button id="acceptCallBtn">Accept</button>
+        <button id="declineCallBtn" class="decline">Decline</button>
+    </div>
+</div>
 
 <div class="container">
+    <div id="authBox">
+        <h1>❄️ Snowfall Secrecy</h1>
+        <input id="authUsername" placeholder="Username">
+        <input id="authPassword" type="password" placeholder="Password">
+        <div class="auth-buttons">
+            <button id="loginBtn">Log In</button>
+            <button id="registerBtn">Register</button>
+        </div>
+    </div>
 
+    <div id="chatBox" style="display: none;">
+        <header>
+            <h1>❄️ Global Chat</h1>
+            <button id="callBtn">📞</button>
+        </header>
 
-<div id="login">
+        <main id="chat"></main>
 
-
-<h1>
-❄️ Sn0wfall Secrecy
-</h1>
-
-
-<input 
-id="password"
-placeholder="Secret passphrase"
->
-
-
-<button id="join">
-Enter ❄️
-</button>
-
-
+        <footer>
+            <input id="mediaInput" type="file" accept="image/*,video/*">
+            <input id="messageInput" placeholder="Message...">
+            <button id="sendBtn">➤</button>
+        </footer>
+    </div>
 </div>
-
-
-
-
-<div id="chatBox">
-
-
-<header>
-
-<h1>
-❄️ Sn0wfall
-</h1>
-
-
-<button id="call">
-📞
-</button>
-
-
-</header>
-
-
-
-<main id="chat">
-
-</main>
-
-
-
-
-<footer>
-
-
-<input
-id="image"
-type="file"
-accept="image/*"
->
-
-
-<input
-id="message"
-placeholder="Message..."
->
-
-
-<button id="send">
-➤
-</button>
-
-
-</footer>
-
-
-
-</div>
-
-
-</div>
-
-
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script src="script.js"></script>
-
-
 </body>
-
 </html>
