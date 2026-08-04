@@ -145,12 +145,12 @@ function renderBubble(msg, isMine) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-// --- Bulletproof WebRTC Audio Engine ---
+// Replace the WebRTC section in public/script.js with this:
+
 let localStream = null;
 let peer = null;
 let pendingIceCandidates = [];
 
-// Clean STUN list (using 2 fast Google servers to avoid browser warnings)
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -179,6 +179,7 @@ async function createPeer(targetUser) {
         }
     };
 
+    // ONLY attach REMOTE tracks to the remote audio element
     peer.ontrack = (event) => {
         let audio = document.getElementById("remoteAudio");
         if (!audio) {
@@ -188,13 +189,20 @@ async function createPeer(targetUser) {
             audio.playsInline = true;
             document.body.appendChild(audio);
         }
-        audio.srcObject = event.streams[0];
-        audio.play().catch(err => console.log("Audio waiting for user gesture:", err));
+        
+        // Assign the remote stream (NOT localStream)
+        if (event.streams && event.streams[0]) {
+            audio.srcObject = event.streams[0];
+        } else {
+            audio.srcObject = new MediaStream([event.track]);
+        }
+        
+        audio.play().catch(err => console.log("Audio playback blocked by browser:", err));
     };
 
-    // Ensure audio track is added before ANY negotiation happens
+    // Attach local mic tracks to send out (DO NOT attach to local <audio> tag)
     const stream = await getMicrophoneStream();
-    stream.getTracks().forEach(track => {
+    stream.getAudioTracks().forEach(track => {
         peer.addTrack(track, stream);
     });
 
@@ -207,7 +215,7 @@ async function processPendingCandidates() {
         try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-            console.error("Queued ICE error:", err);
+            console.error("Queued candidate error:", err);
         }
     }
 }
@@ -242,8 +250,6 @@ declineCallBtn.onclick = () => {
 
 socket.on("call-accepted", async ({ from }) => {
     await createPeer(from);
-    
-    // Explicitly demand audio in offer options to enforce 1 m-line
     const offer = await peer.createOffer({ offerToReceiveAudio: true });
     await peer.setLocalDescription(offer);
     socket.emit("offer", { to: from, offer });
@@ -251,11 +257,9 @@ socket.on("call-accepted", async ({ from }) => {
 
 socket.on("offer", async ({ from, offer }) => {
     await createPeer(from);
-
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
     await processPendingCandidates();
 
-    // Explicitly demand audio in answer options to enforce 1 m-line match
     const answer = await peer.createAnswer({ offerToReceiveAudio: true });
     await peer.setLocalDescription(answer);
     socket.emit("answer", { to: from, answer });
@@ -279,7 +283,6 @@ socket.on("ice-candidate", async ({ candidate }) => {
         pendingIceCandidates.push(candidate);
     }
 });
-
 // --- Snow Effect ---
 const snow = document.getElementById("snow");
 const flakes = ["❄", "❅", "❆", "✦"];
