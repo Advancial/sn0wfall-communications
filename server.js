@@ -102,15 +102,8 @@ io.on("connection", (socket) => {
 });
 
 
-server.listen(3003,()=>{
-
     console.log(
         "❄️ Sn0wfall Secrecy running Now"
     );
 
-});
-const PORT = process.env.PORT || 3003;
-
-server.listen(PORT, () => {
-    console.log(`❄️ Sn0wfall Secrecy running on port ${PORT}`);
 });
