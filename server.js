@@ -60,30 +60,43 @@ app.post("/api/login", async (req, res) => {
 // Connected Users Map (username -> socket.id)
 const connectedUsers = new Map();
 
+// Replace the io.on("connection", ...) block in server.js with this:
+
 io.on("connection", (socket) => {
     let currentUser = null;
 
     socket.on("register-socket", (username) => {
+        if (!username) return;
         currentUser = username;
         connectedUsers.set(username, socket.id);
         socket.join("global-chat");
         io.emit("user-list", Array.from(connectedUsers.keys()));
     });
 
-    // Public Chat
+    // Public Chat (Global ONLY)
     socket.on("message", (msg) => {
-        io.to("global-chat").emit("message", msg);
+        // Force the server to attach the verified username
+        io.to("global-chat").emit("message", {
+            ...msg,
+            name: currentUser || "Anonymous"
+        });
     });
 
-    // Private Direct Message (Ephemeral)
+    // Private Direct Message (DM ONLY - Never sent to global room)
     socket.on("private-message", ({ to, msg }) => {
         const targetSocketId = connectedUsers.get(to);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit("private-message", { from: currentUser, msg });
+        if (targetSocketId && currentUser) {
+            const payload = {
+                from: currentUser,
+                to: to,
+                msg: msg
+            };
+            // Send ONLY to the recipient
+            io.to(targetSocketId).emit("private-message", payload);
         }
     });
 
-    // WebRTC Signaling
+    // WebRTC Calling Signals
     socket.on("call-user", ({ targetUser }) => {
         const targetSocketId = connectedUsers.get(targetUser);
         if (targetSocketId) {
@@ -133,6 +146,5 @@ io.on("connection", (socket) => {
         }
     });
 });
-
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
