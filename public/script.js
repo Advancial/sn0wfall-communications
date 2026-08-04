@@ -114,19 +114,24 @@ function dispatchMessage(msgPayload) {
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
-// Receive Public Message
+// Replace your socket.on("message") and socket.on("private-message") in script.js with this:
+
+// Receive Public Chat Message
 socket.on("message", (msg) => {
+    // IGNORE global messages if we are currently inside a private DM view
     if (!activeDmRecipient) {
         renderBubble(msg, msg.name === currentUser);
     }
 });
 
 // Receive Private Message
-socket.on("private-message", ({ from, msg }) => {
-    if (activeDmRecipient === from) {
+socket.on("private-message", ({ from, to, msg }) => {
+    // Only render the bubble if we are currently looking at THIS specific DM
+    if (activeDmRecipient && activeDmRecipient.toLowerCase() === from.toLowerCase()) {
         renderBubble({ name: from, ...msg }, false);
     } else {
-        alert(`🔒 New DM received from ${from}! Click "DM" to switch.`);
+        // Push notification alert if receiving a DM while in Global Chat or another DM
+        alert(`🔒 Private DM received from ${from}! Click "DM" and type "${from}" to view.`);
     }
 });
 
