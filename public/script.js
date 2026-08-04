@@ -155,24 +155,137 @@ function renderBubble(msg, isMine) {
 // --- Reliable WebRTC Audio Engine ---
 let localStream = null;
 let peer = null;
+let pendingIceCandidates = [];
 
-// STUN + Free TURN servers to solve 1-way audio / symmetric NAT
+// Working STUN servers (using Google's official STUN cluster)
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        {
-            urls: "turn:openrelay.metered.ca:80",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        },
-        {
-            urls: "turn:openrelay.metered.ca:443",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        }
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" }
     ]
 };
+
+async function getMicrophoneStream() {
+    if (!localStream) {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true }
+        });
+    }
+    return localStream;
+}
+
+async function createPeer(targetUser) {
+    if (peer) return peer;
+
+    pendingIceCandidates = []; // Reset candidate queue
+    peer = new RTCPeerConnection(rtcConfig);
+
+    peer.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("ice-candidate", { to: targetUser, candidate: event.candidate });
+        }
+    };
+
+    peer.ontrack = (event) => {
+        let audio = document.getElementById("remoteAudio");
+        if (!audio) {
+            audio = document.createElement("audio");
+            audio.id = "remoteAudio";
+            audio.autoplay = true;
+            audio.playsInline = true;
+            document.body.appendChild(audio);
+        }
+        audio.srcObject = event.streams[0];
+        audio.play().catch(err => console.log("Audio playback waiting on user interaction:", err));
+    };
+
+    // Attach local microphone tracks BEFORE creating offers/answers
+    const stream = await getMicrophoneStream();
+    stream.getTracks().forEach(track => peer.addTrack(track, stream));
+
+    return peer;
+}
+
+// Process buffered ICE candidates once remote description is ready
+async function processPendingCandidates() {
+    while (pendingIceCandidates.length > 0) {
+        const candidate = pendingIceCandidates.shift();
+        try {
+            await peer.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+            console.error("Error adding queued ICE candidate:", err);
+        }
+    }
+}
+
+callBtn.onclick = async () => {
+    const target = prompt("Enter username to call:");
+    if (!target) return;
+    activeCallPartner = target;
+    socket.emit("call-user", { targetUser: target });
+};
+
+socket.on("incoming-call", ({ from }) => {
+    activeCallPartner = from;
+    callerName.textContent = from;
+    callBanner.style.display = "flex";
+});
+
+acceptCallBtn.onclick = async () => {
+    callBanner.style.display = "none";
+    socket.emit("accept-call", { to: activeCallPartner });
+};
+
+declineCallBtn.onclick = () => {
+    callBanner.style.display = "none";
+    socket.emit("decline-call", { to: activeCallPartner });
+    activeCallPartner = null;
+    if (peer) {
+        peer.close();
+        peer = null;
+    }
+};
+
+socket.on("call-accepted", async ({ from }) => {
+    await createPeer(from);
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    socket.emit("offer", { to: from, offer });
+});
+
+socket.on("offer", async ({ from, offer }) => {
+    await createPeer(from);
+
+    await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    await processPendingCandidates(); // Flush candidates arriving during offer set
+
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    socket.emit("answer", { to: from, answer });
+});
+
+socket.on("answer", async ({ answer }) => {
+    if (peer && peer.signalingState === "have-local-offer") {
+        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+        await processPendingCandidates(); // Flush candidates arriving during answer set
+    }
+});
+
+socket.on("ice-candidate", async ({ candidate }) => {
+    if (peer && peer.remoteDescription && peer.remoteDescription.type) {
+        try {
+            await peer.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+            console.error("ICE Candidate Error:", err);
+        }
+    } else {
+        // Queue candidates that arrive before Remote Description is set
+        pendingIceCandidates.push(candidate);
+    }
+});
 
 async function getMicrophoneStream() {
     if (!localStream) {
