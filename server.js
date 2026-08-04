@@ -14,7 +14,6 @@ app.use(express.json());
 
 const USERS_FILE = path.join(__dirname, "data", "users.json");
 
-// Ensure data directory and users.json exist
 if (!fs.existsSync(path.join(__dirname, "data"))) {
     fs.mkdirSync(path.join(__dirname, "data"));
 }
@@ -22,7 +21,6 @@ if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, JSON.stringify([]));
 }
 
-// Helper to read/write JSON
 function getUsers() {
     return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
 }
@@ -30,7 +28,7 @@ function saveUsers(users) {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-// Authentication API
+// Authentication
 app.post("/api/register", async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Missing fields" });
@@ -59,8 +57,8 @@ app.post("/api/login", async (req, res) => {
     res.json({ success: true, username: user.username });
 });
 
-// Active socket mapping for user calling
-const connectedUsers = new Map(); // username -> socket.id
+// Connected Users Map (username -> socket.id)
+const connectedUsers = new Map();
 
 io.on("connection", (socket) => {
     let currentUser = null;
@@ -69,14 +67,23 @@ io.on("connection", (socket) => {
         currentUser = username;
         connectedUsers.set(username, socket.id);
         socket.join("global-chat");
+        io.emit("user-list", Array.from(connectedUsers.keys()));
     });
 
-    // Public Chat Messages (Not saved)
+    // Public Chat
     socket.on("message", (msg) => {
         io.to("global-chat").emit("message", msg);
     });
 
-    // WebRTC Signaling with Call Dialog Target
+    // Private Direct Message (Ephemeral)
+    socket.on("private-message", ({ to, msg }) => {
+        const targetSocketId = connectedUsers.get(to);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit("private-message", { from: currentUser, msg });
+        }
+    });
+
+    // WebRTC Signaling
     socket.on("call-user", ({ targetUser }) => {
         const targetSocketId = connectedUsers.get(targetUser);
         if (targetSocketId) {
@@ -122,8 +129,10 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         if (currentUser) {
             connectedUsers.delete(currentUser);
+            io.emit("user-list", Array.from(connectedUsers.keys()));
         }
     });
 });
 
-server.listen(3000, () => console.log("Server running on http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
