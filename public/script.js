@@ -102,11 +102,9 @@ function sendMessage() {
 
 function dispatchMessage(msgPayload) {
     if (activeDmRecipient) {
-        // Send DM
         socket.emit("private-message", { to: activeDmRecipient, msg: msgPayload });
         renderBubble({ name: currentUser, ...msgPayload }, true);
     } else {
-        // Send Public Message
         socket.emit("message", { name: currentUser, ...msgPayload });
     }
 }
@@ -114,24 +112,19 @@ function dispatchMessage(msgPayload) {
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
-// Replace your socket.on("message") and socket.on("private-message") in script.js with this:
-
-// Receive Public Chat Message
+// Receive Public Message
 socket.on("message", (msg) => {
-    // IGNORE global messages if we are currently inside a private DM view
     if (!activeDmRecipient) {
         renderBubble(msg, msg.name === currentUser);
     }
 });
 
 // Receive Private Message
-socket.on("private-message", ({ from, to, msg }) => {
-    // Only render the bubble if we are currently looking at THIS specific DM
+socket.on("private-message", ({ from, msg }) => {
     if (activeDmRecipient && activeDmRecipient.toLowerCase() === from.toLowerCase()) {
         renderBubble({ name: from, ...msg }, false);
     } else {
-        // Push notification alert if receiving a DM while in Global Chat or another DM
-        alert(`🔒 Private DM received from ${from}! Click "DM" and type "${from}" to view.`);
+        alert(`🔒 Private DM received from ${from}! Click "DM" to view.`);
     }
 });
 
@@ -152,19 +145,16 @@ function renderBubble(msg, isMine) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-// --- Reliable WebRTC Audio Engine ---
+// --- Bulletproof WebRTC Audio Engine ---
 let localStream = null;
 let peer = null;
 let pendingIceCandidates = [];
 
-// Working STUN servers (using Google's official STUN cluster)
+// Clean STUN list (using 2 fast Google servers to avoid browser warnings)
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun3.l.google.com:19302" },
-        { urls: "stun:stun4.l.google.com:19302" }
+        { urls: "stun:stun1.l.google.com:19302" }
     ]
 };
 
@@ -180,7 +170,7 @@ async function getMicrophoneStream() {
 async function createPeer(targetUser) {
     if (peer) return peer;
 
-    pendingIceCandidates = []; // Reset candidate queue
+    pendingIceCandidates = [];
     peer = new RTCPeerConnection(rtcConfig);
 
     peer.onicecandidate = (event) => {
@@ -199,24 +189,25 @@ async function createPeer(targetUser) {
             document.body.appendChild(audio);
         }
         audio.srcObject = event.streams[0];
-        audio.play().catch(err => console.log("Audio playback waiting on user interaction:", err));
+        audio.play().catch(err => console.log("Audio waiting for user gesture:", err));
     };
 
-    // Attach local microphone tracks BEFORE creating offers/answers
+    // Ensure audio track is added before ANY negotiation happens
     const stream = await getMicrophoneStream();
-    stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    stream.getTracks().forEach(track => {
+        peer.addTrack(track, stream);
+    });
 
     return peer;
 }
 
-// Process buffered ICE candidates once remote description is ready
 async function processPendingCandidates() {
     while (pendingIceCandidates.length > 0) {
         const candidate = pendingIceCandidates.shift();
         try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-            console.error("Error adding queued ICE candidate:", err);
+            console.error("Queued ICE error:", err);
         }
     }
 }
@@ -251,7 +242,9 @@ declineCallBtn.onclick = () => {
 
 socket.on("call-accepted", async ({ from }) => {
     await createPeer(from);
-    const offer = await peer.createOffer();
+    
+    // Explicitly demand audio in offer options to enforce 1 m-line
+    const offer = await peer.createOffer({ offerToReceiveAudio: true });
     await peer.setLocalDescription(offer);
     socket.emit("offer", { to: from, offer });
 });
@@ -260,9 +253,10 @@ socket.on("offer", async ({ from, offer }) => {
     await createPeer(from);
 
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
-    await processPendingCandidates(); // Flush candidates arriving during offer set
+    await processPendingCandidates();
 
-    const answer = await peer.createAnswer();
+    // Explicitly demand audio in answer options to enforce 1 m-line match
+    const answer = await peer.createAnswer({ offerToReceiveAudio: true });
     await peer.setLocalDescription(answer);
     socket.emit("answer", { to: from, answer });
 });
@@ -270,7 +264,7 @@ socket.on("offer", async ({ from, offer }) => {
 socket.on("answer", async ({ answer }) => {
     if (peer && peer.signalingState === "have-local-offer") {
         await peer.setRemoteDescription(new RTCSessionDescription(answer));
-        await processPendingCandidates(); // Flush candidates arriving during answer set
+        await processPendingCandidates();
     }
 });
 
@@ -279,119 +273,14 @@ socket.on("ice-candidate", async ({ candidate }) => {
         try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-            console.error("ICE Candidate Error:", err);
+            console.error("ICE error:", err);
         }
     } else {
-        // Queue candidates that arrive before Remote Description is set
         pendingIceCandidates.push(candidate);
     }
 });
 
-async function getMicrophoneStream() {
-    if (!localStream) {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true }
-        });
-    }
-    return localStream;
-}
-
-async function createPeer(targetUser) {
-    if (peer) return peer;
-
-    peer = new RTCPeerConnection(rtcConfig);
-
-    peer.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit("ice-candidate", { to: targetUser, candidate: event.candidate });
-        }
-    };
-
-    peer.ontrack = (event) => {
-        let audio = document.getElementById("remoteAudio");
-        if (!audio) {
-            audio = document.createElement("audio");
-            audio.id = "remoteAudio";
-            audio.autoplay = true;
-            audio.playsInline = true;
-            document.body.appendChild(audio);
-        }
-        audio.srcObject = event.streams[0];
-        audio.play().catch(err => console.log("Audio permission delay:", err));
-    };
-
-    // Ensure local stream audio tracks are attached BEFORE offer/answer
-    const stream = await getMicrophoneStream();
-    stream.getTracks().forEach(track => peer.addTrack(track, stream));
-
-    return peer;
-}
-
-callBtn.onclick = async () => {
-    const target = prompt("Enter username to call:");
-    if (!target) return;
-    activeCallPartner = target;
-    socket.emit("call-user", { targetUser: target });
-};
-
-socket.on("incoming-call", ({ from }) => {
-    activeCallPartner = from;
-    callerName.textContent = from;
-    callBanner.style.display = "flex";
-});
-
-acceptCallBtn.onclick = async () => {
-    callBanner.style.display = "none";
-    socket.emit("accept-call", { to: activeCallPartner });
-};
-
-declineCallBtn.onclick = () => {
-    callBanner.style.display = "none";
-    socket.emit("decline-call", { to: activeCallPartner });
-    activeCallPartner = null;
-};
-
-socket.on("call-accepted", async ({ from }) => {
-    await createPeer(from);
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    socket.emit("offer", { to: from, offer });
-});
-
-socket.on("offer", async ({ from, offer }) => {
-    await createPeer(from);
-
-    if (peer.signalingState !== "stable") {
-        await Promise.all([
-            peer.setLocalDescription({ type: "rollback" }),
-            peer.setRemoteDescription(new RTCSessionDescription(offer))
-        ]);
-    } else {
-        await peer.setRemoteDescription(new RTCSessionDescription(offer));
-    }
-
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-    socket.emit("answer", { to: from, answer });
-});
-
-socket.on("answer", async ({ answer }) => {
-    if (peer && peer.signalingState === "have-local-offer") {
-        await peer.setRemoteDescription(new RTCSessionDescription(answer));
-    }
-});
-
-socket.on("ice-candidate", async ({ candidate }) => {
-    if (peer && peer.remoteDescription) {
-        try {
-            await peer.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-            console.error("ICE error:", err);
-        }
-    }
-});
-
-// Snow Animation
+// --- Snow Effect ---
 const snow = document.getElementById("snow");
 const flakes = ["❄", "❅", "❆", "✦"];
 for (let i = 0; i < 45; i++) {
