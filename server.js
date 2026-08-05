@@ -64,7 +64,14 @@ const connectedUsers = new Map();
 
 io.on("connection", (socket) => {
     let currentUser = null;
+// Add this inside io.on("connection", (socket) => { ... }) in server.js
 
+socket.on("hangup-call", ({ to }) => {
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+        io.to(targetSocketId).emit("call-ended");
+    }
+});
     socket.on("register-socket", (username) => {
         if (!username) return;
         currentUser = username;
