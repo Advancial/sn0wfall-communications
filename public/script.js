@@ -293,7 +293,90 @@ socket.on("ice-candidate", async ({ candidate }) => {
         pendingIceCandidates.push(candidate);
     }
 });
+// Add these UI references at the top of script.js
+const muteBtn = document.getElementById("muteBtn");
+const hangupBtn = document.getElementById("hangupBtn");
 
+let isMuted = false;
+
+// --- Mute Button Handler ---
+muteBtn.onclick = () => {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        isMuted = !isMuted;
+        audioTrack.enabled = !isMuted; // Toggle mic track on/off
+        muteBtn.textContent = isMuted ? "🔇 Unmute" : "🎙️ Mute";
+    }
+};
+
+// --- Hang Up Function ---
+function endCall(notifyPartner = true) {
+    if (notifyPartner && activeCallPartner) {
+        socket.emit("hangup-call", { to: activeCallPartner });
+    }
+
+    // Reset WebRTC connection
+    if (peer) {
+        peer.ontrack = null;
+        peer.onicecandidate = null;
+        peer.close();
+        peer = null;
+    }
+
+    // Remove remote audio element
+    const existingAudio = document.getElementById("remoteAudio");
+    if (existingAudio) {
+        existingAudio.srcObject = null;
+        existingAudio.remove();
+    }
+
+    // Reset call UI state
+    activeCallPartner = null;
+    isMuted = false;
+    if (localStream) {
+        localStream.getAudioTracks()[0].enabled = true; // Ensure mic is unmuted for next call
+    }
+    
+    // Hide controls
+    muteBtn.style.display = "none";
+    hangupBtn.style.display = "none";
+    muteBtn.textContent = "🎙️ Mute";
+    callBtn.style.display = "inline-block";
+}
+
+hangupBtn.onclick = () => {
+    endCall(true);
+};
+
+// Listen for the remote user hanging up
+socket.on("call-ended", () => {
+    alert("Call ended by partner.");
+    endCall(false);
+});
+
+// Update call accept/start logic to show the control buttons:
+socket.on("call-accepted", async ({ from }) => {
+    await createPeer(from);
+    const offer = await peer.createOffer({ offerToReceiveAudio: true });
+    await peer.setLocalDescription(offer);
+    socket.emit("offer", { to: from, offer });
+
+    // Show Mute & Hangup buttons
+    muteBtn.style.display = "inline-block";
+    hangupBtn.style.display = "inline-block";
+    callBtn.style.display = "none";
+});
+
+acceptCallBtn.onclick = async () => {
+    callBanner.style.display = "none";
+    socket.emit("accept-call", { to: activeCallPartner });
+
+    // Show Mute & Hangup buttons
+    muteBtn.style.display = "inline-block";
+    hangupBtn.style.display = "inline-block";
+    callBtn.style.display = "none";
+};
 // --- Snow Effect ---
 const snow = document.getElementById("snow");
 const flakes = ["❄", "❅", "❆", "✦"];
