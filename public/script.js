@@ -69,7 +69,7 @@ dmBtn.onclick = () => {
         activeDmRecipient = target.trim();
         chatTitle.textContent = `🔒 DM with ${activeDmRecipient}`;
     }
-    chat.innerHTML = ""; // Ephemeral clear on channel swap
+    chat.innerHTML = "";
 };
 
 // --- Message Sending ---
@@ -112,14 +112,12 @@ function dispatchMessage(msgPayload) {
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
-// Receive Public Message
 socket.on("message", (msg) => {
     if (!activeDmRecipient) {
         renderBubble(msg, msg.name === currentUser);
     }
 });
 
-// Receive Private Message
 socket.on("private-message", ({ from, msg }) => {
     if (activeDmRecipient && activeDmRecipient.toLowerCase() === from.toLowerCase()) {
         renderBubble({ name: from, ...msg }, false);
@@ -145,42 +143,49 @@ function renderBubble(msg, isMine) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-// Replace the WebRTC section in public/script.js with this:
-
+// --- Direct WebRTC Audio Engine ---
 let localStream = null;
 let peer = null;
 let pendingIceCandidates = [];
 
-// Reliable STUN + TURN Relay configuration
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        {
-            urls: [
-                "turn:openrelay.metered.ca:80",
-                "turn:openrelay.metered.ca:443",
-                "turn:openrelay.metered.ca:443?transport=tcp"
-            ],
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        }
+        { urls: "stun:stun1.l.google.com:19302" }
     ]
 };
 
 async function getMicrophoneStream() {
     if (!localStream) {
         localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true }
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
         });
     }
     return localStream;
 }
 
-async function createPeer(targetUser) {
-    if (peer) return peer;
-
+function closeExistingCall() {
+    if (peer) {
+        peer.ontrack = null;
+        peer.onicecandidate = null;
+        peer.close();
+        peer = null;
+    }
+    const existingAudio = document.getElementById("remoteAudio");
+    if (existingAudio) {
+        existingAudio.srcObject = null;
+        existingAudio.remove();
+    }
     pendingIceCandidates = [];
+}
+
+async function createPeer(targetUser) {
+    closeExistingCall();
+
     peer = new RTCPeerConnection(rtcConfig);
 
     peer.onicecandidate = (event) => {
@@ -189,7 +194,7 @@ async function createPeer(targetUser) {
         }
     };
 
-    // ONLY attach REMOTE tracks to the remote audio element
+    // Explicitly handle incoming remote track and create dedicated audio player
     peer.ontrack = (event) => {
         let audio = document.getElementById("remoteAudio");
         if (!audio) {
@@ -199,18 +204,16 @@ async function createPeer(targetUser) {
             audio.playsInline = true;
             document.body.appendChild(audio);
         }
+
+        const remoteStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
+        audio.srcObject = remoteStream;
         
-        // Assign the remote stream (NOT localStream)
-        if (event.streams && event.streams[0]) {
-            audio.srcObject = event.streams[0];
-        } else {
-            audio.srcObject = new MediaStream([event.track]);
-        }
-        
-        audio.play().catch(err => console.log("Audio playback blocked by browser:", err));
+        audio.play().catch(err => {
+            console.warn("Autoplay interaction blocked:", err);
+        });
     };
 
-    // Attach local mic tracks to send out (DO NOT attach to local <audio> tag)
+    // Attach local mic tracks directly to peer output
     const stream = await getMicrophoneStream();
     stream.getAudioTracks().forEach(track => {
         peer.addTrack(track, stream);
@@ -225,7 +228,7 @@ async function processPendingCandidates() {
         try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-            console.error("Queued candidate error:", err);
+            console.error("ICE error:", err);
         }
     }
 }
@@ -252,10 +255,7 @@ declineCallBtn.onclick = () => {
     callBanner.style.display = "none";
     socket.emit("decline-call", { to: activeCallPartner });
     activeCallPartner = null;
-    if (peer) {
-        peer.close();
-        peer = null;
-    }
+    closeExistingCall();
 };
 
 socket.on("call-accepted", async ({ from }) => {
@@ -287,12 +287,13 @@ socket.on("ice-candidate", async ({ candidate }) => {
         try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-            console.error("ICE error:", err);
+            console.error("Candidate add error:", err);
         }
     } else {
         pendingIceCandidates.push(candidate);
     }
 });
+
 // --- Snow Effect ---
 const snow = document.getElementById("snow");
 const flakes = ["❄", "❅", "❆", "✦"];
