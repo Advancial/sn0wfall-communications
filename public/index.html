@@ -2,308 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sn0wfall OS</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
+    <title>❄️ Snowfall Secrecy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="snow"></div>
+<div id="snow"></div>
 
-    <div class="phone-wrapper">
-        <div class="phone-screen" id="phoneScreen">
-            
-            <div class="status-bar">
-                <span id="currentTime">12:00</span>
-                <span class="os-title-bar">Sn0wfall OS</span>
-                <div class="status-icons">
-                    <span class="tooltip" data-tooltip="Signal">📶</span>
-                    <span class="tooltip" data-tooltip="Battery Full">🔋</span>
-                </div>
-            </div>
+<div id="callBanner" class="call-banner" style="display: none;">
+    <p><strong id="callerName">User</strong> is calling...</p>
+    <div class="banner-buttons">
+        <button id="acceptCallBtn">Accept</button>
+        <button id="declineCallBtn" class="decline">Decline</button>
+    </div>
+</div>
 
-            <div id="callOverlay" class="call-overlay" style="display: none;">
-                <div class="call-header">
-                    <span id="callPartnerName">User</span>
-                    <span id="callStatus">In Call</span>
-                </div>
-                <div class="video-grid">
-                    <video id="localVideo" autoplay playsinline muted></video>
-                    <video id="remoteVideo" autoplay playsinline></video>
-                </div>
-                <div class="call-controls">
-                    <button id="muteBtn" class="tooltip" data-tooltip="Toggle Microphone">🎙️</button>
-                    <button id="shareScreenBtn" class="tooltip" data-tooltip="Share Screen">🖥️</button>
-                    <button id="hangupBtn" class="decline-btn tooltip" data-tooltip="End Call">❌</button>
-                </div>
-            </div>
-
-            <div id="callBanner" class="call-banner" style="display: none;">
-                <p><strong id="callerName">User</strong> is calling...</p>
-                <div class="banner-buttons">
-                    <button id="acceptCallBtn" class="tooltip" data-tooltip="Accept Call">📞 Accept</button>
-                    <button id="declineCallBtn" class="decline-btn tooltip" data-tooltip="Decline Call">❌ Decline</button>
-                </div>
-            </div>
-
-            <div id="toastNotification" class="toast-notification" style="display: none;"></div>
-
-            <div id="authScreen" class="app-screen active">
-                <div class="auth-card">
-                    <h1>❄️ Sn0wfall OS</h1>
-                    <p>Enter a screen name</p>
-                    <input id="usernameInput" type="text" maxlength="25" placeholder="Enter username...">
-                    <button id="enterAppBtn" class="primary-btn tooltip" data-tooltip="Login to OS">Enter OS</button>
-                </div>
-            </div>
-
-            <div id="homeScreen" class="app-screen">
-                <div class="app-grid">
-                    <div class="app-icon tooltip" data-tooltip="Messages" onclick="openApp('chatApp')">
-                        <div class="icon-box">💬</div><span>Messages</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="Contacts & Groups" onclick="openApp('contactsApp')">
-                        <div class="icon-box">🎴</div><span>Contacts</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="Arcade Games" onclick="openApp('gamesApp')">
-                        <div class="icon-box">🎮</div><span>Arcade</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="Calculator" onclick="openApp('calcApp')">
-                        <div class="icon-box">🧮</div><span>Calculator</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="TV Shows" onclick="openApp('tvApp')">
-                        <div class="icon-box">📺</div><span>Goojara</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="Anime" onclick="openApp('animeApp')">
-                        <div class="icon-box">⛩️</div><span>WCO</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="Random Cats" onclick="openApp('catsApp')">
-                        <div class="icon-box">🐱</div><span>Cats</span>
-                    </div>
-                    <div class="app-icon tooltip" data-tooltip="System Settings" onclick="openApp('settingsApp')">
-                        <div class="icon-box">⚙️</div><span>Settings</span>
-                    </div>
-                    
-                    <div id="secretAppIcon" class="app-icon tooltip" data-tooltip="Vault" onclick="openApp('secretApp')" style="display: none;">
-                        <div class="icon-box" style="background:#111; color:#fff;">🖤</div><span>Vault</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="secretApp" class="app-screen app-window">
-                <div class="app-header">
-                    <h2>🖤 Secret Vault</h2>
-                    <button class="back-btn tooltip" data-tooltip="Back Home" onclick="goHome()">Home</button>
-                </div>
-                <div class="app-content flex-center" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 15px;">
-                    <div id="secretInputDiv" style="text-align:center; width:100%;">
-                        <p style="margin-bottom:15px; font-weight:bold; color:#555;">Enter the passphrase:</p>
-                        <input type="text" id="secretCode" placeholder="Passphrase..." style="padding:12px; border-radius:12px; border:1px solid #ccc; width: 80%; outline:none;">
-                        <br>
-                        <button onclick="checkSecretCode()" class="primary-btn" style="margin-top:15px;">Unlock</button>
-                    </div>
-                    <div id="secretSuccessDiv" style="display:none; text-align:center;">
-                        <h3 style="color:#e74c3c; margin-bottom: 20px; font-size: 24px;">i love u</h3>
-                        <a href="http://107.175.215.141:3005" target="_blank" class="external-link-btn" style="background:#1c2e4a; color:#fff; padding: 12px 24px; font-size: 16px;">Enter Portal</a>
-                    </div>
-                </div>
-            </div>
-
-            <div id="chatApp" class="app-screen app-window">
-                <div class="app-header">
-                    <button id="backToGlobalBtn" class="back-btn tooltip" data-tooltip="Back to Global" onclick="switchChatTarget('global')" style="display: none;">🌐 Global</button>
-                    <h2 id="chatTitle" style="font-size: 13px;">❄️ Global</h2>
-                    <div class="header-actions">
-                        <button onclick="promptNewDM()" class="tooltip" data-tooltip="New DM">📝</button>
-                        <button id="callBtn" class="tooltip" data-tooltip="Voice/Video Call">📞</button>
-                    </div>
-                </div>
-                
-                <div id="chatMessages" class="chat-messages"></div>
-
-                <div id="mediaPreviewContainer" class="media-preview-container" style="display: none;">
-                    <span id="mediaPreviewFilename">image.png</span>
-                    <img id="mediaPreviewImg" src="" alt="Preview">
-                    <button id="cancelMediaPreview" class="tooltip" data-tooltip="Remove Image">✖</button>
-                </div>
-
-                <div class="chat-footer">
-                    <label for="mediaInput" class="media-upload-label tooltip" data-tooltip="Attach Media">📷</label>
-                    <input id="mediaInput" type="file" accept="image/*,video/*" style="display: none;">
-                    <input id="messageInput" type="text" placeholder="Type a message or paste an image...">
-                    <button id="sendBtn" class="tooltip" data-tooltip="Send Message">➤</button>
-                </div>
-            </div>
-
-            <div id="contactsApp" class="app-screen app-window">
-                <div class="app-header">
-                    <h2>🎴 Contacts & Groups</h2>
-                    <button id="createGroupBtn" class="tooltip external-link-btn" data-tooltip="New Group">➕ Group</button>
-                </div>
-                <div class="app-content">
-                    <h3 class="section-title">Recent DMs (Saved)</h3>
-                    <div id="recentContactsList" class="list-group" style="margin-bottom: 15px;">
-                        <p style="padding:10px; color:#999; font-size: 13px;">No recent contacts.</p>
-                    </div>
-
-                    <h3 class="section-title">Online Users</h3>
-                    <div id="contactsList" class="list-group">
-                        <p style="padding:10px; color:#666;">Loading users...</p>
-                    </div>
-
-                    <h3 class="section-title" style="margin-top: 15px;">Group Chats</h3>
-                    <div id="groupsList" class="list-group"></div>
-                </div>
-            </div>
-
-            <div id="gamesApp" class="app-screen app-window">
-                <div class="app-header"><h2>🎮 Arcade</h2></div>
-                <div class="app-content grid-content" id="arcadeList">
-                    <button onclick="startMultiplayerTicTacToe()" class="game-card tooltip" data-tooltip="Play Co-op Tic Tac Toe">⚔️ Multiplayer Tic-Tac-Toe</button>
-                    <button onclick="launchWebGame('minesweeper')" class="game-card tooltip" data-tooltip="Play Minesweeper (In App)">💣 Minesweeper</button>
-                    <button onclick="launchWebGame('sudoku')" class="game-card tooltip" data-tooltip="Play Sudoku (New Tab)">🔢 Sudoku</button>
-                    <button onclick="launchWebGame('solitaire')" class="game-card tooltip" data-tooltip="Play Solitaire (New Tab)">🃏 Solitaire</button>
-                </div>
-                
-                <div id="nativeGameContainer" class="app-content" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
-                    <button class="back-btn" onclick="closeGame()" style="align-self: flex-start; margin-bottom: 20px;">← Back</button>
-                    <h3 id="tttStatus" style="margin-bottom: 15px;">Waiting for opponent...</h3>
-                    <div class="ttt-board" id="tttBoard">
-                        <div class="ttt-cell" onclick="makeMove(0)"></div>
-                        <div class="ttt-cell" onclick="makeMove(1)"></div>
-                        <div class="ttt-cell" onclick="makeMove(2)"></div>
-                        <div class="ttt-cell" onclick="makeMove(3)"></div>
-                        <div class="ttt-cell" onclick="makeMove(4)"></div>
-                        <div class="ttt-cell" onclick="makeMove(5)"></div>
-                        <div class="ttt-cell" onclick="makeMove(6)"></div>
-                        <div class="ttt-cell" onclick="makeMove(7)"></div>
-                        <div class="ttt-cell" onclick="makeMove(8)"></div>
-                    </div>
-                </div>
-
-                <div id="activeGameContainer" class="fullscreen-iframe-container" style="display: none;">
-                    <div class="game-top-bar">
-                        <button class="back-btn tooltip" data-tooltip="Exit Game" onclick="closeGame()">← Back</button>
-                        <a id="externalGameLink" href="#" target="_blank" class="external-link-btn">Open in Browser</a>
-                    </div>
-                    <iframe id="gameIframe" src="" frameborder="0" allowfullscreen></iframe>
-                </div>
-            </div>
-
-            <div id="calcApp" class="app-screen app-window">
-                <div class="app-header"><h2>🧮 Calculator</h2></div>
-                <div class="app-content calc-wrapper">
-                    <input type="text" id="calcDisplay" readonly value="0">
-                    <div class="calc-grid">
-                        <button onclick="calcInput('C')" class="calc-btn clear tooltip" data-tooltip="Clear">C</button>
-                        <button onclick="calcInput('(')" class="calc-btn">(</button>
-                        <button onclick="calcInput(')')" class="calc-btn">)</button>
-                        <button onclick="calcInput('/')" class="calc-btn op">÷</button>
-                        
-                        <button onclick="calcInput('7')" class="calc-btn">7</button>
-                        <button onclick="calcInput('8')" class="calc-btn">8</button>
-                        <button onclick="calcInput('9')" class="calc-btn">9</button>
-                        <button onclick="calcInput('*')" class="calc-btn op">×</button>
-                        
-                        <button onclick="calcInput('4')" class="calc-btn">4</button>
-                        <button onclick="calcInput('5')" class="calc-btn">5</button>
-                        <button onclick="calcInput('6')" class="calc-btn">6</button>
-                        <button onclick="calcInput('-')" class="calc-btn op">-</button>
-                        
-                        <button onclick="calcInput('1')" class="calc-btn">1</button>
-                        <button onclick="calcInput('2')" class="calc-btn">2</button>
-                        <button onclick="calcInput('3')" class="calc-btn">3</button>
-                        <button onclick="calcInput('+')" class="calc-btn op">+</button>
-                        
-                        <button onclick="calcInput('0')" class="calc-btn span-two">0</button>
-                        <button onclick="calcInput('.')" class="calc-btn">.</button>
-                        <button onclick="calcEquals()" class="calc-btn equals tooltip" data-tooltip="Calculate">=</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="catsApp" class="app-screen app-window">
-                <div class="app-header"><h2>🐱 Random Cats</h2></div>
-                <div class="app-content flex-center" style="display:flex; flex-direction:column; align-items:center; gap: 15px;">
-                    <img id="catImage" src="" alt="Cat will appear here" style="max-width:100%; border-radius: 12px; min-height: 200px; background: #eee; object-fit: cover;">
-                    <button onclick="fetchCat()" class="primary-btn">🐾 Get New Cat</button>
-                </div>
-            </div>
-
-            <div id="tvApp" class="app-screen fullscreen-app">
-                <div class="app-header">
-                    <h2>📺 Goojara</h2>
-                    <div class="header-actions">
-                        <a href="https://ww1.goojara.to/" target="_blank" class="external-link-btn tooltip" data-tooltip="If screen is blank, click here">Open External</a>
-                        <button class="back-btn" onclick="goHome()">Home</button>
-                    </div>
-                </div>
-                <div class="app-content">
-                    <iframe src="https://ww1.goojara.to/" frameborder="0" allowfullscreen></iframe>
-                </div>
-            </div>
-
-            <div id="animeApp" class="app-screen fullscreen-app">
-                <div class="app-header">
-                    <h2>⛩️ WCO</h2>
-                    <div class="header-actions">
-                        <a href="https://wco.tv/" target="_blank" class="external-link-btn tooltip" data-tooltip="If screen is blank, click here">Open External</a>
-                        <button class="back-btn" onclick="goHome()">Home</button>
-                    </div>
-                </div>
-                <div class="app-content">
-                    <iframe src="https://wco.tv/" frameborder="0" allowfullscreen></iframe>
-                </div>
-            </div>
-
-            <div id="settingsApp" class="app-screen app-window">
-                <div class="app-header"><h2>⚙️ Settings</h2></div>
-                <div class="app-content">
-                    <div class="setting-item flex-col">
-                        <label>Background Preset</label>
-                        <select id="bgSelect" class="settings-dropdown">
-                            <option value="default">Default Gradient</option>
-                            <option value="mountain">Icy Mountain</option>
-                            <option value="cherry">Japanese Cherry Blossoms</option>
-                            <option value="forest">Winter Forest</option>
-                            <option value="space">Deep Space</option>
-                        </select>
-                    </div>
-                    <div class="setting-item flex-col">
-                        <label>Screen Brightness</label>
-                        <input type="range" id="brightnessSlider" min="30" max="100" value="100" style="width:100%;">
-                    </div>
-                    <div class="setting-item">
-                        <label>UI Dark Mode (Apps)</label>
-                        <input type="checkbox" id="uiDarkModeToggle">
-                    </div>
-                    <div class="setting-item">
-                        <label>Black Background Mode</label>
-                        <input type="checkbox" id="bgDarkModeToggle">
-                    </div>
-                    <div class="setting-item">
-                        <label>Disable Snow Animation</label>
-                        <input type="checkbox" id="disableSnowToggle">
-                    </div>
-                    <div class="setting-item flex-col">
-                        <label>Chat Bubble Color</label>
-                        <input type="color" id="bubbleColorPicker" value="#9bd7ff">
-                    </div>
-                    <div class="setting-item">
-                        <button onclick="clearSavedContacts()" class="decline-btn" style="width: 100%; border-radius: 12px; padding: 10px; color: white; border: none; font-weight: bold; cursor: pointer;">🗑️ Clear Saved Contacts</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="phone-nav-bar">
-                <button class="home-btn tooltip" data-tooltip="Home Screen" onclick="goHome()"></button>
-            </div>
-
+<div class="container">
+    <div id="authBox">
+        <h1>❄️ Snowfall Secrecy</h1>
+        <input id="authUsername" placeholder="Username">
+        <input id="authPassword" type="password" placeholder="Password">
+        <div class="auth-buttons">
+            <button id="loginBtn">Log In</button>
+            <button id="registerBtn">Register</button>
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+    <div id="chatBox" style="display: none;">
+<header>
+    <h1 id="chatTitle">❄️ Global Chat</h1>
+    <div class="header-actions">
+        <button id="dmBtn">💬 DM</button>
+        <button id="callBtn">📞 Call</button>
+        <button id="muteBtn" style="display: none;">🎙️ Mute</button>
+        <button id="hangupBtn" style="display: none; background: #ff8c8c;">❌ End</button>
+    </div>
+</header>
+
+        <main id="chat"></main>
+
+        <footer>
+            <input id="mediaInput" type="file" accept="image/*,video/*">
+            <input id="messageInput" placeholder="Message...">
+            <button id="sendBtn">➤</button>
+        </footer>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
