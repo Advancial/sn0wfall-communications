@@ -12,6 +12,7 @@ function openApp(appId) {
     document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
     const target = document.getElementById(appId);
     if (target) target.classList.add("active");
+    if(appId === 'catsApp') fetchCat();
 }
 
 function goHome() {
@@ -104,16 +105,22 @@ document.getElementById("messageInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendMessage(); 
 });
 
-socket.on("message", (msg) => {
-    if (activeTarget === "global") renderBubble(msg, msg.sender === currentUser);
-});
-
+// Hack: Intercept hidden game data sent over Private Messages
 socket.on("private-message", ({ from, msg }) => {
+    if(msg.text && msg.text.startsWith("GAME_DATA:")) {
+        handleIncomingGameData(from, msg.text);
+        return; 
+    }
+
     if (activeTarget === `user_${from.toLowerCase()}`) {
         renderBubble({ sender: from, ...msg }, false);
     } else {
         showToast(`🔒 DM from ${from}`);
     }
+});
+
+socket.on("message", (msg) => {
+    if (activeTarget === "global") renderBubble(msg, msg.sender === currentUser);
 });
 
 socket.on("group-message", ({ groupId, sender, msg }) => {
@@ -174,18 +181,40 @@ socket.on("group-created", ({ groupId, groupName }) => {
     </div>`;
 });
 
+function promptNewDM() {
+    const target = prompt("Enter exact username to DM:");
+    if(target) switchChatTarget(`user_${target}`);
+}
+
 function switchChatTarget(target, nameOverride = "") {
     activeTarget = target;
     document.getElementById("chatMessages").innerHTML = "";
     
+    const backBtn = document.getElementById("backToGlobalBtn");
+
     if (target === "global") {
         document.getElementById("chatTitle").textContent = "❄️ Global";
+        backBtn.style.display = "none";
     } else if (target.startsWith("user_")) {
         document.getElementById("chatTitle").textContent = `🔒 DM: ${target.replace("user_", "")}`;
+        backBtn.style.display = "inline-block";
     } else if (target.startsWith("group_")) {
         document.getElementById("chatTitle").textContent = `👥 Group: ${nameOverride}`;
+        backBtn.style.display = "inline-block";
     }
     openApp("chatApp");
+}
+
+// --- Cats App ---
+async function fetchCat() {
+    try {
+        document.getElementById("catImage").src = "";
+        const response = await fetch("https://api.thecatapi.com/v1/images/search");
+        const data = await response.json();
+        document.getElementById("catImage").src = data[0].url;
+    } catch (err) {
+        showToast("Failed to fetch cat :(");
+    }
 }
 
 // --- WebRTC Video Calling Engine ---
@@ -261,7 +290,6 @@ function calcInput(val) {
 }
 function calcEquals() {
     try {
-        // Safe evaluation stripping out dangerous characters
         const sanitized = calcDisplay.value.replace(/[^-()\d/*+.]/g, '');
         calcDisplay.value = new Function(`return ${sanitized}`)();
     } catch {
@@ -269,26 +297,116 @@ function calcEquals() {
     }
 }
 
-// --- Arcade Games Hub ---
+// --- Arcade Games Hub & Multiplayer Native TTT ---
+let tttBoard = ["", "", "", "", "", "", "", "", ""];
+let tttOpponent = null;
+let tttMySymbol = "";
+let tttIsMyTurn = false;
+
 function launchWebGame(gameKey) {
     const urls = {
-        tictactoe: "https://playtictactoe.org/",
         sudoku: "https://sudoku.com/",
-        chess: "https://www.chess.com/play/computer",
-        "2048": "https://play2048.co/",
-        wordle: "https://www.nytimes.com/games/wordle/index.html",
-        minesweeper: "https://minesweeper.online/"
+        minesweeper: "https://minesweeper.online/",
+        solitaire: "https://solitaires.com/"
     };
     if (!urls[gameKey]) return;
     document.getElementById("arcadeList").style.display = "none";
     document.getElementById("gameIframe").src = urls[gameKey];
+    document.getElementById("externalGameLink").href = urls[gameKey];
     document.getElementById("activeGameContainer").style.display = "flex";
 }
 
 function closeGame() {
     document.getElementById("gameIframe").src = "";
     document.getElementById("activeGameContainer").style.display = "none";
+    document.getElementById("nativeGameContainer").style.display = "none";
     document.getElementById("arcadeList").style.display = "grid";
+    tttOpponent = null;
+}
+
+// Native TTT Logic bypassing the server by injecting data into DM packets
+function startMultiplayerTicTacToe() {
+    const target = prompt("Enter exact username of opponent:");
+    if(!target) return;
+    
+    document.getElementById("arcadeList").style.display = "none";
+    document.getElementById("nativeGameContainer").style.display = "flex";
+    
+    tttOpponent = target;
+    tttMySymbol = "X";
+    tttIsMyTurn = true;
+    tttBoard = ["", "", "", "", "", "", "", "", ""];
+    renderTTT();
+    
+    document.getElementById("tttStatus").textContent = `Playing vs ${target} (Your Turn - X)`;
+    socket.emit("private-message", { to: target, msg: { text: "GAME_DATA:INVITE" }});
+}
+
+function handleIncomingGameData(from, payload) {
+    const data = payload.split(":")[1];
+    
+    if(data === "INVITE") {
+        if(confirm(`${from} challenged you to Tic-Tac-Toe! Accept?`)) {
+            openApp("gamesApp");
+            document.getElementById("arcadeList").style.display = "none";
+            document.getElementById("nativeGameContainer").style.display = "flex";
+            
+            tttOpponent = from;
+            tttMySymbol = "O";
+            tttIsMyTurn = false;
+            tttBoard = ["", "", "", "", "", "", "", "", ""];
+            renderTTT();
+            document.getElementById("tttStatus").textContent = `Playing vs ${from} (Waiting for them...)`;
+            socket.emit("private-message", { to: from, msg: { text: "GAME_DATA:ACCEPT" }});
+        }
+    } 
+    else if(data === "ACCEPT") {
+        showToast(`${from} accepted your game!`);
+    } 
+    else if(data.startsWith("MOVE_")) {
+        const index = parseInt(data.split("_")[1]);
+        tttBoard[index] = tttMySymbol === "X" ? "O" : "X";
+        tttIsMyTurn = true;
+        document.getElementById("tttStatus").textContent = `Your Turn (${tttMySymbol})`;
+        renderTTT();
+        checkTTTWin();
+    }
+}
+
+function makeMove(index) {
+    if(!tttIsMyTurn || tttBoard[index] !== "" || !tttOpponent) return;
+    
+    tttBoard[index] = tttMySymbol;
+    tttIsMyTurn = false;
+    document.getElementById("tttStatus").textContent = `Waiting for ${tttOpponent}...`;
+    renderTTT();
+    
+    socket.emit("private-message", { to: tttOpponent, msg: { text: `GAME_DATA:MOVE_${index}` }});
+    checkTTTWin();
+}
+
+function renderTTT() {
+    const cells = document.querySelectorAll(".ttt-cell");
+    cells.forEach((cell, i) => {
+        cell.textContent = tttBoard[i];
+    });
+}
+
+function checkTTTWin() {
+    const wins = [ [0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6] ];
+    let winner = null;
+    wins.forEach(combo => {
+        if(tttBoard[combo[0]] && tttBoard[combo[0]] === tttBoard[combo[1]] && tttBoard[combo[0]] === tttBoard[combo[2]]) {
+            winner = tttBoard[combo[0]];
+        }
+    });
+    
+    if(winner) {
+        document.getElementById("tttStatus").textContent = winner === tttMySymbol ? "You Won! 🎉" : "You Lost! 😢";
+        tttIsMyTurn = false;
+    } else if(!tttBoard.includes("")) {
+        document.getElementById("tttStatus").textContent = "It's a Draw! 🤝";
+    }
 }
 
 // --- Settings & UI Logic ---
