@@ -4,71 +4,10 @@ const socket = io();
 let currentUser = "";
 let activeTarget = "global"; // 'global', 'user_<name>', or 'group_<id>'
 let pendingMediaData = null;
-let replyTargetMsgId = null;
 let activeCallPartner = null;
 let isScreenSharing = false;
 
-// Settings State
-let settings = {
-    darkMode: false,
-    autoTranslate: false,
-    disableSnow: false,
-    autoShortenNames: false,
-    bubbleColor: "#9bd7ff",
-    bgColor: "#aacfff"
-};
-
-// --- DOM Elements ---
-const authScreen = document.getElementById("authScreen");
-const homeScreen = document.getElementById("homeScreen");
-const usernameInput = document.getElementById("usernameInput");
-const enterAppBtn = document.getElementById("enterAppBtn");
-const currentTimeEl = document.getElementById("currentTime");
-
-// Chat Elements
-const chatTitle = document.getElementById("chatTitle");
-const chatMessages = document.getElementById("chatMessages");
-const messageInput = document.getElementById("messageInput");
-const mediaInput = document.getElementById("mediaInput");
-const sendBtn = document.getElementById("sendBtn");
-const createGroupBtn = document.getElementById("createGroupBtn");
-const callBtn = document.getElementById("callBtn");
-
-// Media Preview Elements
-const mediaPreviewContainer = document.getElementById("mediaPreviewContainer");
-const mediaPreviewImg = document.getElementById("mediaPreviewImg");
-const mediaPreviewFilename = document.getElementById("mediaPreviewFilename");
-const cancelMediaPreview = document.getElementById("cancelMediaPreview");
-
-// Settings Elements
-const darkModeToggle = document.getElementById("darkModeToggle");
-const autoTranslateToggle = document.getElementById("autoTranslateToggle");
-const disableSnowToggle = document.getElementById("disableSnowToggle");
-const autoShortenNamesToggle = document.getElementById("autoShortenNamesToggle");
-const bubbleColorPicker = document.getElementById("bubbleColorPicker");
-const bgColorPicker = document.getElementById("bgColorPicker");
-
-// --- Initialization & Clock ---
-function updateClock() {
-    const now = new Date();
-    currentTimeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// --- Username Entry (No Password Required) ---
-enterAppBtn.onclick = () => {
-    const val = usernameInput.value.trim();
-    if (!val) return alert("Please enter a username.");
-    currentUser = val.slice(0, 25);
-    
-    socket.emit("register-socket", currentUser);
-    
-    authScreen.classList.remove("active");
-    homeScreen.classList.add("active");
-};
-
-// --- OS Navigation & Apps ---
+// --- App Navigation ---
 function openApp(appId) {
     document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
     const target = document.getElementById(appId);
@@ -77,17 +16,27 @@ function openApp(appId) {
 
 function goHome() {
     document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
-    homeScreen.classList.add("active");
+    document.getElementById("homeScreen").classList.add("active");
 }
 
-function powerOffPhone() {
-    if (confirm("Turn off Snowfall OS?")) {
-        window.close();
-        document.body.innerHTML = "<div style='color:white;text-align:center;margin-top:40vh;'><h2>Device Powered Off</h2></div>";
-    }
-}
+// --- Login & Clock ---
+document.getElementById("enterAppBtn").onclick = () => {
+    const val = document.getElementById("usernameInput").value.trim();
+    if (!val) return alert("Enter a screen name.");
+    currentUser = val.slice(0, 25);
+    
+    socket.emit("register-socket", currentUser);
+    openApp("homeScreen");
+};
 
-// --- Image Pasting Preview & Upload Handling ---
+function updateClock() {
+    const now = new Date();
+    document.getElementById("currentTime").textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// --- Media Pasting & Uploading ---
 document.addEventListener("paste", (e) => {
     const items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (const item of items) {
@@ -95,60 +44,45 @@ document.addEventListener("paste", (e) => {
             const blob = item.getAsFile();
             const reader = new FileReader();
             reader.onload = (event) => {
-                pendingMediaData = {
-                    type: "image",
-                    data: event.target.result
-                };
-                mediaPreviewImg.src = event.target.result;
-                mediaPreviewFilename.textContent = "Pasted_Image.png";
-                mediaPreviewContainer.style.display = "flex";
+                pendingMediaData = { type: "image", data: event.target.result };
+                document.getElementById("mediaPreviewImg").src = event.target.result;
+                document.getElementById("mediaPreviewFilename").textContent = "Pasted_Image.png";
+                document.getElementById("mediaPreviewContainer").style.display = "flex";
             };
             reader.readAsDataURL(blob);
         }
     }
 });
 
-mediaInput.onchange = (e) => {
+document.getElementById("mediaInput").onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     const isVideo = file.type.startsWith("video/");
     reader.onload = (event) => {
-        pendingMediaData = {
-            type: isVideo ? "video" : "image",
-            data: event.target.result
-        };
-        mediaPreviewImg.src = isVideo ? "" : event.target.result;
-        mediaPreviewFilename.textContent = file.name;
-        mediaPreviewContainer.style.display = "flex";
+        pendingMediaData = { type: isVideo ? "video" : "image", data: event.target.result };
+        document.getElementById("mediaPreviewImg").src = isVideo ? "" : event.target.result;
+        document.getElementById("mediaPreviewFilename").textContent = file.name;
+        document.getElementById("mediaPreviewContainer").style.display = "flex";
     };
     reader.readAsDataURL(file);
 };
 
-cancelMediaPreview.onclick = () => {
+document.getElementById("cancelMediaPreview").onclick = () => {
     pendingMediaData = null;
-    mediaInput.value = "";
-    mediaPreviewContainer.style.display = "none";
+    document.getElementById("mediaInput").value = "";
+    document.getElementById("mediaPreviewContainer").style.display = "none";
 };
 
-// --- Formatting Helper (Auto-Shorten Names) ---
-function formatName(name) {
-    if (settings.autoShortenNames && name.length > 5) {
-        return name.slice(0, 5) + "..";
-    }
-    return name;
-}
-
-// --- Message Dispatching ---
+// --- Chat & Messaging Engine ---
 function sendMessage() {
-    const text = messageInput.value.trim();
+    const text = document.getElementById("messageInput").value.trim();
     if (!text && !pendingMediaData) return;
 
     const payload = {
         text,
         media: pendingMediaData ? pendingMediaData.data : null,
-        mediaType: pendingMediaData ? pendingMediaData.type : null,
-        replyTo: replyTargetMsgId
+        mediaType: pendingMediaData ? pendingMediaData.type : null
     };
 
     if (activeTarget === "global") {
@@ -161,14 +95,15 @@ function sendMessage() {
         socket.emit("group-message", { groupId: activeTarget, msg: payload });
     }
 
-    messageInput.value = "";
-    cancelMediaPreview.click();
+    document.getElementById("messageInput").value = "";
+    document.getElementById("cancelMediaPreview").click();
 }
 
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+document.getElementById("sendBtn").onclick = sendMessage;
+document.getElementById("messageInput").addEventListener("keydown", (e) => { 
+    if (e.key === "Enter") sendMessage(); 
+});
 
-// Socket Message Listeners
 socket.on("message", (msg) => {
     if (activeTarget === "global") renderBubble(msg, msg.sender === currentUser);
 });
@@ -177,7 +112,7 @@ socket.on("private-message", ({ from, msg }) => {
     if (activeTarget === `user_${from.toLowerCase()}`) {
         renderBubble({ sender: from, ...msg }, false);
     } else {
-        showToast(`🔒 Direct message from ${formatName(from)}`);
+        showToast(`🔒 DM from ${from}`);
     }
 });
 
@@ -187,14 +122,11 @@ socket.on("group-message", ({ groupId, sender, msg }) => {
     }
 });
 
-// Render Chat Bubble
 function renderBubble(msg, isMine) {
     const bubble = document.createElement("div");
     bubble.className = `bubble ${isMine ? "mine" : "theirs"}`;
-    bubble.dataset.id = msg.id || Date.now();
 
-    let authorSpan = `<span class="bubble-author">${formatName(msg.sender || "Anon")}</span>`;
-    let content = authorSpan;
+    let content = `<span class="bubble-author">${msg.sender || "Anon"}</span>`;
 
     if (msg.media) {
         if (msg.mediaType === "video") {
@@ -204,41 +136,59 @@ function renderBubble(msg, isMine) {
         }
     }
 
-    if (msg.text) {
-        content += `<p class="msg-text">${msg.text}</p>`;
-    }
-
-    // Action overlay (Edit/Delete/React)
-    content += `
-        <div class="msg-actions">
-            <button onclick="reactMsg('${bubble.dataset.id}', '❤️')">❤️</button>
-            <button onclick="reactMsg('${bubble.dataset.id}', '😂')">😂</button>
-            ${isMine ? `<button onclick="editMsg('${bubble.dataset.id}')">✏️</button>` : ""}
-            ${isMine ? `<button onclick="deleteMsg('${bubble.dataset.id}')">🗑️</button>` : ""}
-        </div>
-        <div class="reaction-bar" id="reactions-${bubble.dataset.id}"></div>
-    `;
+    if (msg.text) content += `<p class="msg-text">${msg.text}</p>`;
 
     bubble.innerHTML = content;
-    chatMessages.appendChild(bubble);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    const chat = document.getElementById("chatMessages");
+    chat.appendChild(bubble);
+    chat.scrollTop = chat.scrollHeight;
 }
 
-// Group Chat Creation
-createGroupBtn.onclick = () => {
+// --- Contacts & Group Management ---
+socket.on("user-list", (users) => {
+    const list = document.getElementById("contactsList");
+    list.innerHTML = "";
+    users.forEach(u => {
+        if (u.toLowerCase() !== currentUser.toLowerCase()) {
+            list.innerHTML += `<div class="contact-item">
+                <strong>👤 ${u}</strong>
+                <button onclick="switchChatTarget('user_${u}')" class="primary-btn">DM</button>
+            </div>`;
+        }
+    });
+});
+
+document.getElementById("createGroupBtn").onclick = () => {
     const groupName = prompt("Enter Group Name:");
     if (!groupName) return;
-    const membersInput = prompt("Enter member usernames (comma separated, max 90):");
+    const membersInput = prompt("Enter member usernames (comma separated):");
     const members = membersInput ? membersInput.split(",") : [];
-    
     socket.emit("create-group", { groupName, members });
 };
 
 socket.on("group-created", ({ groupId, groupName }) => {
-    showToast(`Group "${groupName}" Created!`);
+    const gList = document.getElementById("groupsList");
+    gList.innerHTML += `<div class="contact-item">
+        <strong>👥 ${groupName}</strong>
+        <button onclick="switchChatTarget('${groupId}', '${groupName}')" class="primary-btn">Chat</button>
+    </div>`;
 });
 
-// --- WebRTC Video & Screen Share Calling Engine ---
+function switchChatTarget(target, nameOverride = "") {
+    activeTarget = target;
+    document.getElementById("chatMessages").innerHTML = "";
+    
+    if (target === "global") {
+        document.getElementById("chatTitle").textContent = "❄️ Global";
+    } else if (target.startsWith("user_")) {
+        document.getElementById("chatTitle").textContent = `🔒 DM: ${target.replace("user_", "")}`;
+    } else if (target.startsWith("group_")) {
+        document.getElementById("chatTitle").textContent = `👥 Group: ${nameOverride}`;
+    }
+    openApp("chatApp");
+}
+
+// --- WebRTC Video Calling Engine ---
 let localStream = null;
 let peer = null;
 
@@ -258,11 +208,11 @@ async function startCall(isScreen = false) {
         document.getElementById("callOverlay").style.display = "flex";
         socket.emit("call-user", { targetUser: target, isScreenShare: isScreen });
     } catch (err) {
-        alert("Camera/Microphone/Screen access denied or unavailable.");
+        alert("Camera/Microphone access denied or unavailable.");
     }
 }
 
-callBtn.onclick = () => startCall(false);
+document.getElementById("callBtn").onclick = () => startCall(false);
 document.getElementById("shareScreenBtn").onclick = () => startCall(true);
 
 document.getElementById("hangupBtn").onclick = () => {
@@ -279,7 +229,7 @@ function closeCall() {
 
 socket.on("incoming-call", ({ from }) => {
     activeCallPartner = from;
-    document.getElementById("callerName").textContent = formatName(from);
+    document.getElementById("callerName").textContent = from;
     document.getElementById("callBanner").style.display = "flex";
 });
 
@@ -298,107 +248,83 @@ document.getElementById("declineCallBtn").onclick = () => {
 };
 
 socket.on("call-ended", () => {
-    alert("Call ended by partner.");
+    alert("Call ended.");
     closeCall();
 });
 
-// --- Contacts App Population ---
-socket.on("user-list", (users) => {
-    const list = document.getElementById("contactsList");
-    list.innerHTML = "";
-    users.forEach(u => {
-        if (u.toLowerCase() !== currentUser.toLowerCase()) {
-            const item = document.createElement("div");
-            item.style.cssText = "padding: 10px; background: white; border-radius: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;";
-            item.innerHTML = `
-                <strong>${formatName(u)}</strong>
-                <button onclick="switchChatTarget('user_${u}')" style="background:#8ccfff; border:none; padding:6px 12px; border-radius:12px; color:white; cursor:pointer;">DM</button>
-            `;
-            list.appendChild(item);
-        }
-    });
-});
-
-function switchChatTarget(target) {
-    activeTarget = target;
-    chatMessages.innerHTML = "";
-    if (target === "global") {
-        chatTitle.textContent = "❄️ Global Chat";
-    } else if (target.startsWith("user_")) {
-        chatTitle.textContent = `🔒 DM: ${formatName(target.replace("user_", ""))}`;
+// --- Fixed Calculator Logic ---
+const calcDisplay = document.getElementById("calcDisplay");
+function calcInput(val) {
+    if (calcDisplay.value === "0" || calcDisplay.value === "Error") calcDisplay.value = "";
+    if (val === "C") { calcDisplay.value = "0"; return; }
+    calcDisplay.value += val;
+}
+function calcEquals() {
+    try {
+        // Safe evaluation stripping out dangerous characters
+        const sanitized = calcDisplay.value.replace(/[^-()\d/*+.]/g, '');
+        calcDisplay.value = new Function(`return ${sanitized}`)();
+    } catch {
+        calcDisplay.value = "Error";
     }
-    openApp("chatApp");
 }
 
-// --- Arcade Games Logic ---
-function launchGame(gameId) {
-    document.getElementById("activeGameContainer").style.display = "block";
-    const board = document.getElementById("gameBoard");
-    board.innerHTML = `<h3>Playing ${gameId.toUpperCase()}</h3><div style="padding:20px; text-align:center;">Game Board initialized. Ready to play!</div>`;
+// --- Arcade Games Hub ---
+function launchWebGame(gameKey) {
+    const urls = {
+        tictactoe: "https://playtictactoe.org/",
+        sudoku: "https://sudoku.com/",
+        chess: "https://www.chess.com/play/computer",
+        "2048": "https://play2048.co/",
+        wordle: "https://www.nytimes.com/games/wordle/index.html",
+        minesweeper: "https://minesweeper.online/"
+    };
+    if (!urls[gameKey]) return;
+    document.getElementById("arcadeList").style.display = "none";
+    document.getElementById("gameIframe").src = urls[gameKey];
+    document.getElementById("activeGameContainer").style.display = "flex";
 }
 
 function closeGame() {
+    document.getElementById("gameIframe").src = "";
     document.getElementById("activeGameContainer").style.display = "none";
+    document.getElementById("arcadeList").style.display = "grid";
 }
 
-// --- Cute Cats Feed ---
-async function fetchNewCat() {
-    const gallery = document.getElementById("catGallery");
-    gallery.innerHTML = "<p>Loading cute cats...</p>";
-    try {
-        const res = await fetch("https://api.thecatapi.com/v1/images/search?limit=3");
-        const data = await res.json();
-        gallery.innerHTML = "";
-        data.forEach(item => {
-            const img = document.createElement("img");
-            img.src = item.url;
-            img.style.cssText = "width:100%; border-radius:14px; margin-bottom:10px;";
-            gallery.appendChild(img);
-        });
-    } catch {
-        gallery.innerHTML = "<p>Failed to load cat pictures.</p>";
-    }
-}
-
-// --- Calculator Logic ---
-function calcInput(val) {
-    const disp = document.getElementById("calcDisplay");
-    if (disp.value === "0" || disp.value === "Error") disp.value = "";
-    if (val === "C") { disp.value = "0"; return; }
-    disp.value += val;
-}
-
-function calcEquals() {
-    const disp = document.getElementById("calcDisplay");
-    try {
-        disp.value = eval(disp.value);
-    } catch {
-        disp.value = "Error";
-    }
-}
-
-// --- Settings Handlers ---
-darkModeToggle.onchange = (e) => {
-    document.body.style.background = e.target.checked ? "#121212" : "var(--bg-gradient)";
+// --- Settings & UI Logic ---
+const backgrounds = {
+    default: "var(--bg-gradient)",
+    mountain: "url('https://images.unsplash.com/photo-1517299321609-52687d1bc55a?w=1080&q=80') center/cover",
+    cherry: "url('https://images.unsplash.com/photo-1493957988430-a5f2e15f39a3?w=1080&q=80') center/cover",
+    forest: "url('https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?w=1080&q=80') center/cover",
+    space: "url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1080&q=80') center/cover"
 };
 
-disableSnowToggle.onchange = (e) => {
+document.getElementById("bgSelect").onchange = (e) => {
+    document.body.style.background = backgrounds[e.target.value];
+    document.getElementById("bgDarkModeToggle").checked = false;
+};
+
+document.getElementById("brightnessSlider").oninput = (e) => {
+    document.getElementById("phoneScreen").style.filter = `brightness(${e.target.value}%)`;
+};
+
+document.getElementById("uiDarkModeToggle").onchange = (e) => {
+    document.body.classList.toggle("ui-dark-mode", e.target.checked);
+};
+
+document.getElementById("bgDarkModeToggle").onchange = (e) => {
+    document.body.style.background = e.target.checked ? "#000000" : backgrounds[document.getElementById("bgSelect").value];
+};
+
+document.getElementById("disableSnowToggle").onchange = (e) => {
     document.getElementById("snow").style.display = e.target.checked ? "none" : "block";
 };
 
-autoShortenNamesToggle.onchange = (e) => {
-    settings.autoShortenNames = e.target.checked;
-};
-
-bubbleColorPicker.oninput = (e) => {
+document.getElementById("bubbleColorPicker").oninput = (e) => {
     document.documentElement.style.setProperty("--bubble-mine", e.target.value);
 };
 
-bgColorPicker.oninput = (e) => {
-    document.body.style.background = e.target.value;
-};
-
-// Toast Notifications
 function showToast(msg) {
     const toast = document.getElementById("toastNotification");
     toast.textContent = msg;
@@ -406,7 +332,7 @@ function showToast(msg) {
     setTimeout(() => { toast.style.display = "none"; }, 3000);
 }
 
-// Snow Effect Generation
+// Snow Flake Generation Engine
 const snow = document.getElementById("snow");
 const flakes = ["❄", "❅", "❆"];
 for (let i = 0; i < 35; i++) {
