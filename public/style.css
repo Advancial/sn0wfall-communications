@@ -1,3 +1,516 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root {
+    --bg-gradient: linear-gradient(135deg, #1c2e4a, #3b5998, #8ccfff);
+    --bubble-mine: #9bd7ff;
+    --bubble-theirs: #e8f6ff;
+    --text-color: #333333;
+}
+
+body {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-gradient);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    overflow: hidden;
+    transition: background 0.3s ease;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* --- Snow Effect --- */
+#snow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.snowflake {
+    position: absolute;
+    top: -20px;
+    color: #ffffff;
+    user-select: none;
+    opacity: 0.85;
+    animation: fall linear infinite;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+@keyframes fall {
+    0% { transform: translateY(-20px) translateX(0) rotate(0deg); }
+    50% { transform: translateY(50vh) translateX(30px) rotate(180deg); }
+    100% { transform: translateY(105vh) translateX(-30px) rotate(360deg); }
+}
+
+/* --- Phone Hardware Frame --- */
+.phone-wrapper {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 440px;
+    height: 94vh;
+    max-height: 880px;
+    background: #000000;
+    border-radius: 48px;
+    padding: 10px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 4px #2c2c2e;
+    display: flex;
+    flex-direction: column;
+}
+
+.phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 38px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s ease, filter 0.3s ease;
+}
+
+/* --- Status Bar --- */
+.status-bar {
+    height: 28px;
+    padding: 0 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #222222;
+    background: rgba(255, 255, 255, 0.85);
+    z-index: 20;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.os-title-bar {
+    font-weight: bold;
+    color: #1c2e4a;
+}
+
+.status-icons {
+    display: flex;
+    gap: 6px;
+}
+
+/* --- App Screen Containers --- */
+.app-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.app-screen.active {
+    display: flex;
+}
+
+.app-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* --- Onboarding Auth Screen --- */
+.auth-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    text-align: center;
+    gap: 15px;
+}
+
+.auth-card h1 {
+    font-size: 2rem;
+    color: #1c2e4a;
+}
+
+.auth-card input {
+    width: 100%;
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 14px;
+}
+
+/* --- Home Screen Grid --- */
+#homeScreen {
+    padding: 20px 15px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px 12px;
+    padding-top: 10px;
+}
+
+.app-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.app-icon:hover {
+    transform: scale(1.08);
+}
+
+.icon-box {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    background: #ffffff;
+}
+
+.app-icon span {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #111;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+/* --- App Navigation Header --- */
+.app-header {
+    height: 48px;
+    padding: 0 12px;
+    background: #8ccfff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.app-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f2b48;
+}
+
+.back-btn, .external-link-btn {
+    border: none;
+    background: #ffffff;
+    color: #1c2e4a;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.header-actions button {
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* --- Chat App Styling --- */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f4f9fd;
+}
+
+.bubble {
+    position: relative;
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.bubble.mine {
+    align-self: flex-end;
+    background: var(--bubble-mine);
+    border-bottom-right-radius: 4px;
+}
+
+.bubble.theirs {
+    align-self: flex-start;
+    background: var(--bubble-theirs);
+    border-bottom-left-radius: 4px;
+}
+
+.bubble-author {
+    font-size: 11px;
+    font-weight: bold;
+    color: #2b5278;
+    margin-bottom: 3px;
+    display: block;
+}
+
+/* --- Media Preview & Footer --- */
+.media-preview-container {
+    padding: 8px;
+    background: #e1f0fa;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.media-preview-container img {
+    height: 40px;
+    border-radius: 6px;
+}
+
+.chat-footer {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    background: #ffffff;
+    gap: 8px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.chat-footer input[type="text"] {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 13px;
+}
+
+.media-upload-label, .chat-footer button, .primary-btn {
+    background: #8ccfff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* --- WebRTC Call Overlay --- */
+.call-overlay {
+    position: absolute;
+    inset: 28px 0 35px 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    color: #ffffff;
+}
+
+.video-grid {
+    flex: 1;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #111;
+    border-radius: 12px;
+}
+
+.call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.call-controls button {
+    padding: 12px 18px;
+    border-radius: 50%;
+    font-size: 18px;
+    border: none;
+    cursor: pointer;
+}
+
+.decline-btn {
+    background: #ff5c5c !important;
+}
+
+/* --- Call Banner --- */
+.call-banner {
+    position: absolute;
+    top: 35px;
+    left: 10px;
+    right: 10px;
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 16px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+}
+
+.banner-buttons {
+    display: flex;
+    justify-content: space-around;
+}
+
+.banner-buttons button {
+    padding: 8px 15px;
+    border-radius: 12px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.banner-buttons button:first-child { background: #4caf50; color: white; }
+
+/* --- Arcade Games Hub Grid --- */
+.grid-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.game-card {
+    padding: 15px;
+    background: #ffffff;
+    border: 1px solid #dcdcdc;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #1c2e4a;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: transform 0.1s ease;
+}
+
+.game-card:hover {
+    transform: translateY(-2px);
+    background: #eef7ff;
+}
+
+.game-top-bar {
+    padding: 6px 10px;
+    background: #e1f0fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* --- Calculator App --- */
+.calc-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+#calcDisplay {
+    width: 100%;
+    height: 60px;
+    background: #222222;
+    color: #ffffff;
+    font-size: 28px;
+    text-align: right;
+    padding: 10px 15px;
+    border-radius: 16px;
+    border: none;
+}
+
+.calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex: 1;
+}
+
+.calc-btn {
+    background: #e6e6e6;
+    border: none;
+    border-radius: 16px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.calc-btn.op { background: #8ccfff; color: white; }
+.calc-btn.clear { background: #ff8c8c; color: white; }
+.calc-btn.equals { background: #4caf50; color: white; }
+.calc-btn.span-two { grid-column: span 2; }
+
+/* --- Settings App Layout --- */
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+}
+
+.setting-item.flex-col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* --- Phone Hardware Navigation Bar --- */
+.phone-nav-bar {
+    height: 35px;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-top: 1px solid #eee;
+}
+
+.home-btn {
+    width: 110px;
+    height: 5px;
+    background: #444444;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+}
+
 /* --- Tooltips on Hover --- */
 .tooltip {
     position: relative;
@@ -53,7 +566,7 @@ body.ui-dark-mode .app-header {
     background: #2a2a2a;
     border-bottom: 1px solid #444;
 }
-body.ui-dark-mode .app-header h2, body.ui-dark-mode .status-bar {
+body.ui-dark-mode .app-header h2, body.ui-dark-mode .status-bar, body.ui-dark-mode .os-title-bar {
     color: #ffffff;
 }
 body.ui-dark-mode .status-bar {
@@ -82,15 +595,22 @@ body.ui-dark-mode .game-card {
 }
 body.ui-dark-mode .section-title {
     color: #ccc;
-    font-size: 12px;
-    text-transform: uppercase;
-    margin-bottom: 5px;
+}
+body.ui-dark-mode .setting-item {
+    border-bottom: 1px solid #444;
+}
+body.ui-dark-mode .phone-nav-bar {
+    background: #2a2a2a;
+    border-top: 1px solid #444;
+}
+body.ui-dark-mode .home-btn {
+    background: #888;
 }
 
 /* --- Contacts List --- */
 .contact-item {
     padding: 10px;
-    background: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.8);
     border-radius: 12px;
     margin-bottom: 8px;
     display: flex;
@@ -103,9 +623,46 @@ body.ui-dark-mode .contact-item {
     border-color: rgba(255,255,255,0.1);
 }
 
+.section-title {
+    color: #666;
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
 .settings-dropdown {
     width: 100%;
     padding: 8px;
     border-radius: 10px;
     border: 1px solid #ccc;
+}
+
+/* --- Toast Notification --- */
+.toast-notification {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 1000;
+}
+
+/* --- Responsive Formatting --- */
+@media (max-width: 480px) {
+    .phone-wrapper {
+        height: 100vh;
+        max-height: 100vh;
+        width: 100vw;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+    .phone-screen {
+        border-radius: 0;
+    }
 }
