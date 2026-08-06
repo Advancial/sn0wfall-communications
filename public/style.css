@@ -1,202 +1,425 @@
-* { 
+* {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root {
+    --bg-gradient: linear-gradient(135deg, #1c2e4a, #3b5998, #8ccfff);
+    --bubble-mine: #9bd7ff;
+    --bubble-theirs: #e8f6ff;
+    --text-color: #333333;
 }
 
 body {
-    margin: 0;
     height: 100vh;
+    width: 100vw;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #dff6ff, #aacfff);
+    background: var(--bg-gradient);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
     overflow: hidden;
 }
 
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* --- Snow Effect --- */
 #snow {
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 1;
-    overflow: hidden;
 }
 
 .snowflake {
     position: absolute;
-    top: -50px;
-    color: white;
+    top: -20px;
+    color: #ffffff;
     user-select: none;
-    opacity: 0.8;
+    opacity: 0.85;
     animation: fall linear infinite;
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
 }
 
 @keyframes fall {
-    0% { transform: translateY(-50px) translateX(0) rotate(0deg); }
-    50% { transform: translateY(50vh) translateX(40px) rotate(180deg); }
-    100% { transform: translateY(110vh) translateX(-40px) rotate(360deg); }
+    0% { transform: translateY(-20px) translateX(0) rotate(0deg); }
+    50% { transform: translateY(50vh) translateX(30px) rotate(180deg); }
+    100% { transform: translateY(105vh) translateX(-30px) rotate(360deg); }
 }
 
-.container {
+/* --- Phone Hardware Frame --- */
+.phone-wrapper {
     position: relative;
-    z-index: 2;
-    width: 95%;
-    max-width: 450px;
-    height: 90vh;
-    background: white;
-    border-radius: 28px;
-    overflow: hidden;
-    box-shadow: 0 20px 50px #789;
+    z-index: 10;
+    width: 100%;
+    max-width: 420px;
+    height: 92vh;
+    max-height: 850px;
+    background: #000000;
+    border-radius: 48px;
+    padding: 12px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 4px #2c2c2e;
+    display: flex;
+    flex-direction: column;
 }
 
-#authBox {
+.phone-screen {
+    position: relative;
+    width: 100%;
     height: 100%;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border-radius: 38px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Status Bar --- */
+.status-bar {
+    height: 28px;
+    padding: 0 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #222222;
+    background: rgba(255, 255, 255, 0.6);
+    z-index: 20;
+}
+
+.status-icons {
+    display: flex;
+    gap: 6px;
+}
+
+/* --- App Screen Containers --- */
+.app-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.app-screen.active {
+    display: flex;
+}
+
+/* --- Onboarding Auth Screen --- */
+.auth-card {
+    flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 30px;
+    text-align: center;
     gap: 15px;
-    padding: 20px;
 }
 
-#chatBox {
-    display: none;
-    height: 100%;
+.auth-card h1 {
+    font-size: 2rem;
+    color: #1c2e4a;
+}
+
+.auth-card input {
+    width: 100%;
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 14px;
+}
+
+/* --- Home Screen Grid --- */
+#homeScreen {
+    padding: 20px 15px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px 12px;
+    padding-top: 10px;
+}
+
+.app-icon {
+    display: flex;
     flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
 }
 
-header {
-    height: 70px;
-    background: linear-gradient(90deg, #8ccfff, #dff6ff);
+.app-icon:hover {
+    transform: scale(1.08);
+}
+
+.icon-box {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    background: #ffffff;
+}
+
+.app-icon span {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #111;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+/* --- App Navigation Header --- */
+.app-header {
+    height: 50px;
+    padding: 0 12px;
+    background: #8ccfff;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-header h1 {
-    font-size: 1.1rem;
-    margin: 0;
+.app-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f2b48;
 }
 
-.header-actions {
-    display: flex;
-    gap: 5px;
-}
-
-header button {
-    border: 0;
-    background: white;
-    border-radius: 20px;
-    padding: 8px 12px;
+.back-btn, .external-link-btn {
+    border: none;
+    background: #ffffff;
+    color: #1c2e4a;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    font-weight: bold;
-    color: #4477aa;
+    text-decoration: none;
 }
 
-#chat {
+/* --- Chat App Styling --- */
+.chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 15px;
-    background: #f5fbff;
-}
-
-footer {
+    padding: 12px;
     display: flex;
-    gap: 8px;
-    padding: 12px;
-}
-
-#messageInput {
-    flex: 1;
-}
-
-input {
-    padding: 12px;
-    border-radius: 20px;
-    border: 1px solid #aac;
-}
-
-#mediaInput {
-    width: 95px;
-    font-size: 11px;
-}
-
-button {
-    background: #8ccfff;
-    color: white;
-    border: 0;
-    border-radius: 20px;
-    padding: 12px;
-    cursor: pointer;
-}
-
-.auth-buttons {
-    display: flex;
+    flex-direction: column;
     gap: 10px;
+    background: #f4f9fd;
 }
 
 .bubble {
-    max-width: 75%;
-    padding: 12px;
-    margin: 8px;
-    border-radius: 20px;
+    position: relative;
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 13px;
+    line-height: 1.4;
     word-break: break-word;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-.mine {
-    margin-left: auto;
-    background: #9bd7ff;
+.bubble.mine {
+    align-self: flex-end;
+    background: var(--bubble-mine);
+    border-bottom-right-radius: 4px;
 }
 
-.theirs {
-    background: #e8f6ff;
+.bubble.theirs {
+    align-self: flex-start;
+    background: var(--bubble-theirs);
+    border-bottom-left-radius: 4px;
 }
 
-.sentImage, .sentVideo {
-    max-width: 220px;
-    border-radius: 15px;
-    margin-top: 5px;
+.bubble-author {
+    font-size: 11px;
+    font-weight: bold;
+    color: #2b5278;
+    margin-bottom: 3px;
+    display: block;
 }
 
-.call-banner {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
+.msg-actions {
+    display: none;
+    position: absolute;
+    top: -12px;
+    right: 10px;
     background: #ffffff;
-    padding: 12px 24px;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    border: 2px solid #8ccfff;
+    border-radius: 12px;
+    padding: 2px 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    gap: 4px;
 }
 
-.banner-buttons {
+.bubble:hover .msg-actions {
     display: flex;
+}
+
+.msg-actions button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.reaction-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.reaction-tag {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 1px 5px;
+    font-size: 10px;
+}
+
+/* --- Media Preview & Footer Input --- */
+.media-preview-container {
+    padding: 8px;
+    background: #e1f0fa;
+    display: flex;
+    align-items: center;
     gap: 10px;
 }
 
-.banner-buttons button.decline {
-    background: #ff8c8c;
+.media-preview-container img {
+    height: 40px;
+    border-radius: 6px;
 }
 
-@media(max-width: 600px) {
-    .container {
+.chat-footer {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    background: #ffffff;
+    gap: 8px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.chat-footer input[type="text"] {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 13px;
+}
+
+.media-upload-label, .chat-footer button, .primary-btn {
+    background: #8ccfff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* --- Video Overlay / Screen Share --- */
+.call-overlay {
+    position: absolute;
+    inset: 28px 0 35px 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    color: #ffffff;
+}
+
+.video-grid {
+    flex: 1;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #111;
+    border-radius: 12px;
+}
+
+.call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.call-controls button {
+    padding: 12px 18px;
+    border-radius: 50%;
+    font-size: 18px;
+    border: none;
+    cursor: pointer;
+}
+
+.decline-btn {
+    background: #ff5c5c !important;
+}
+
+/* --- Phone Hardware Navigation Bar --- */
+.phone-nav-bar {
+    height: 35px;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-top: 1px solid #eee;
+}
+
+.home-btn {
+    width: 110px;
+    height: 5px;
+    background: #444444;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+}
+
+.power-btn {
+    position: absolute;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* --- Responsive Formatting --- */
+@media (max-width: 480px) {
+    .phone-wrapper {
         height: 100vh;
-        width: 100%;
+        max-height: 100vh;
+        width: 100vw;
         border-radius: 0;
+        padding: 0;
+        box-shadow: none;
     }
-
-    footer {
-        padding: 8px;
-    }
-
-    #mediaInput {
-        width: 80px;
+    .phone-screen {
+        border-radius: 0;
     }
 }
