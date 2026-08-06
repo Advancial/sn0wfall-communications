@@ -26,15 +26,24 @@
             <div id="callOverlay" class="call-overlay" style="display: none;">
                 <div class="call-header">
                     <span id="callPartnerName">User</span>
+                    <span id="callStatus">In Call</span>
                 </div>
                 <div class="video-grid">
                     <video id="localVideo" autoplay playsinline muted></video>
                     <video id="remoteVideo" autoplay playsinline></video>
                 </div>
                 <div class="call-controls">
-                    <button id="muteBtn" class="tooltip" data-tooltip="Mute/Unmute">🎙️</button>
+                    <button id="muteBtn" class="tooltip" data-tooltip="Toggle Microphone">🎙️</button>
                     <button id="shareScreenBtn" class="tooltip" data-tooltip="Share Screen">🖥️</button>
                     <button id="hangupBtn" class="decline-btn tooltip" data-tooltip="End Call">❌</button>
+                </div>
+            </div>
+
+            <div id="callBanner" class="call-banner" style="display: none;">
+                <p><strong id="callerName">User</strong> is calling...</p>
+                <div class="banner-buttons">
+                    <button id="acceptCallBtn" class="tooltip" data-tooltip="Accept Call">📞 Accept</button>
+                    <button id="declineCallBtn" class="decline-btn tooltip" data-tooltip="Decline Call">❌ Decline</button>
                 </div>
             </div>
 
@@ -43,6 +52,7 @@
             <div id="authScreen" class="app-screen active">
                 <div class="auth-card">
                     <h1>❄️ Sn0wfall OS</h1>
+                    <p>Enter a screen name (Up to 25 characters)</p>
                     <input id="usernameInput" type="text" maxlength="25" placeholder="Enter username...">
                     <button id="enterAppBtn" class="primary-btn tooltip" data-tooltip="Login to OS">Enter OS</button>
                 </div>
@@ -83,9 +93,19 @@
                         <button id="callBtn" class="tooltip" data-tooltip="Voice/Video Call">📞</button>
                     </div>
                 </div>
+                
                 <div id="chatMessages" class="chat-messages"></div>
+
+                <div id="mediaPreviewContainer" class="media-preview-container" style="display: none;">
+                    <span id="mediaPreviewFilename">image.png</span>
+                    <img id="mediaPreviewImg" src="" alt="Preview">
+                    <button id="cancelMediaPreview" class="tooltip" data-tooltip="Remove Image">✖</button>
+                </div>
+
                 <div class="chat-footer">
-                    <input id="messageInput" type="text" placeholder="Type a message...">
+                    <label for="mediaInput" class="media-upload-label tooltip" data-tooltip="Attach Media">📷</label>
+                    <input id="mediaInput" type="file" accept="image/*,video/*" style="display: none;">
+                    <input id="messageInput" type="text" placeholder="Type a message or paste an image...">
                     <button id="sendBtn" class="tooltip" data-tooltip="Send Message">➤</button>
                 </div>
             </div>
@@ -97,7 +117,9 @@
                 </div>
                 <div class="app-content">
                     <h3 class="section-title">Direct Messages</h3>
-                    <div id="contactsList" class="list-group"></div>
+                    <div id="contactsList" class="list-group">
+                        <p style="padding:10px; color:#666;">Loading users...</p>
+                    </div>
                     <h3 class="section-title" style="margin-top: 15px;">Group Chats</h3>
                     <div id="groupsList" class="list-group"></div>
                 </div>
@@ -110,10 +132,12 @@
                     <button onclick="launchWebGame('sudoku')" class="game-card tooltip" data-tooltip="Play Sudoku">🔢 Sudoku</button>
                     <button onclick="launchWebGame('chess')" class="game-card tooltip" data-tooltip="Play Chess">♟️ Chess</button>
                     <button onclick="launchWebGame('2048')" class="game-card tooltip" data-tooltip="Play 2048">🧩 2048</button>
+                    <button onclick="launchWebGame('wordle')" class="game-card tooltip" data-tooltip="Play Wordle">🔤 Wordle</button>
+                    <button onclick="launchWebGame('minesweeper')" class="game-card tooltip" data-tooltip="Play Minesweeper">💣 Minesweeper</button>
                 </div>
                 <div id="activeGameContainer" class="fullscreen-iframe-container" style="display: none;">
                     <div class="game-top-bar">
-                        <button class="back-btn tooltip" data-tooltip="Exit Game" onclick="closeGame()">← Back</button>
+                        <button class="back-btn tooltip" data-tooltip="Exit Game" onclick="closeGame()">← Back to Arcade</button>
                     </div>
                     <iframe id="gameIframe" src="" frameborder="0" allowfullscreen></iframe>
                 </div>
@@ -208,7 +232,7 @@
             </div>
 
             <div class="phone-nav-bar">
-                <button class="home-btn tooltip" data-tooltip="Home" onclick="goHome()"></button>
+                <button class="home-btn tooltip" data-tooltip="Home Screen" onclick="goHome()"></button>
             </div>
 
         </div>
