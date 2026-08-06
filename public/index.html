@@ -14,6 +14,8 @@
     <div class="phone-wrapper">
         <div class="phone-screen" id="phoneScreen">
             
+            <div id="powerOffScreen" class="power-off-screen" style="display: none;"></div>
+
             <div class="status-bar">
                 <span id="currentTime">12:00</span>
                 <span class="os-title-bar">Sn0wfall OS</span>
@@ -60,28 +62,31 @@
 
             <div id="homeScreen" class="app-screen">
                 <div class="app-grid">
-                    <div class="app-icon tooltip" data-tooltip="Messages" onclick="openApp('chatApp')">
+                    <div class="app-icon" onclick="openApp('chatApp')">
                         <div class="icon-box">💬</div><span>Messages</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="Contacts & Groups" onclick="openApp('contactsApp')">
+                    <div class="app-icon" onclick="openApp('contactsApp')">
                         <div class="icon-box">🎴</div><span>Contacts</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="Arcade Games" onclick="openApp('gamesApp')">
+                    <div class="app-icon" onclick="openApp('gamesApp')">
                         <div class="icon-box">🎮</div><span>Arcade</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="Calculator" onclick="openApp('calcApp')">
+                    <div class="app-icon" onclick="openApp('notesApp')">
+                        <div class="icon-box">📝</div><span>Notes</span>
+                    </div>
+                    <div class="app-icon" onclick="openApp('calcApp')">
                         <div class="icon-box">🧮</div><span>Calculator</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="TV Shows" onclick="openApp('tvApp')">
+                    <div class="app-icon" onclick="openApp('tvApp')">
                         <div class="icon-box">📺</div><span>Goojara</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="Anime" onclick="openApp('animeApp')">
+                    <div class="app-icon" onclick="openApp('animeApp')">
                         <div class="icon-box">⛩️</div><span>WCO</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="Random Cats" onclick="openApp('catsApp')">
+                    <div class="app-icon" onclick="openApp('catsApp')">
                         <div class="icon-box">🐱</div><span>Cats</span>
                     </div>
-                    <div class="app-icon tooltip" data-tooltip="System Settings" onclick="openApp('settingsApp')">
+                    <div class="app-icon" onclick="openApp('settingsApp')">
                         <div class="icon-box">⚙️</div><span>Settings</span>
                     </div>
                 </div>
@@ -119,9 +124,13 @@
                     <button id="createGroupBtn" class="tooltip external-link-btn" data-tooltip="New Group">➕ Group</button>
                 </div>
                 <div class="app-content">
-                    <h3 class="section-title">Direct Messages</h3>
+                    <h3 class="section-title">Recent DMs</h3>
+                    <div id="recentContactsList" class="list-group" style="margin-bottom: 15px;">
+                        <p style="padding:10px; color:#666; font-size:12px;">No recent chats.</p>
+                    </div>
+                    <h3 class="section-title">All Online Users</h3>
                     <div id="contactsList" class="list-group">
-                        <p style="padding:10px; color:#666;">Loading users...</p>
+                        <p style="padding:10px; color:#666; font-size:12px;">Loading users...</p>
                     </div>
                     <h3 class="section-title" style="margin-top: 15px;">Group Chats</h3>
                     <div id="groupsList" class="list-group"></div>
@@ -129,36 +138,46 @@
             </div>
 
             <div id="gamesApp" class="app-screen app-window">
-                <div class="app-header"><h2>🎮 Arcade</h2></div>
+                <div class="app-header"><h2>🎮 Arcade Hub</h2></div>
                 <div class="app-content grid-content" id="arcadeList">
-                    <button onclick="startMultiplayerTicTacToe()" class="game-card tooltip" data-tooltip="Play Co-op Tic Tac Toe">⚔️ Multiplayer Tic-Tac-Toe</button>
-                    <button onclick="launchWebGame('sudoku')" class="game-card tooltip" data-tooltip="Play Sudoku">🔢 Sudoku</button>
-                    <button onclick="launchWebGame('minesweeper')" class="game-card tooltip" data-tooltip="Play Minesweeper">💣 Minesweeper</button>
-                    <button onclick="launchWebGame('solitaire')" class="game-card tooltip" data-tooltip="Play Solitaire">🃏 Solitaire</button>
+                    <button onclick="startNativeGame('tictactoe')" class="game-card">⚔️ Tic-Tac-Toe (Native)</button>
+                    <button onclick="startNativeGame('coinflip')" class="game-card">🪙 Coin Flip (Native)</button>
+                    <button onclick="startNativeGame('connect4')" class="game-card">🔴 Connect 4 (Native)</button>
+                    
+                    <button onclick="launchWebGame('chess')" class="game-card">♟️ Chess (Online)</button>
+                    <button onclick="launchWebGame('uno')" class="game-card">🃏 UNO (Online)</button>
+                    <button onclick="launchWebGame('battleship')" class="game-card">🚢 Battleship</button>
+                    <button onclick="launchWebGame('checkers')" class="game-card">🏁 Checkers</button>
+                    <button onclick="launchWebGame('sudoku')" class="game-card">🔢 Sudoku</button>
+                    <button onclick="launchWebGame('wordle')" class="game-card">🔤 Wordle</button>
+                    <button onclick="launchWebGame('minesweeper')" class="game-card">💣 Minesweeper</button>
+                    <button onclick="launchWebGame('dots')" class="game-card">🖍️ Connect Dots</button>
+                    <button onclick="launchWebGame('crossword')" class="game-card">📰 Crossword</button>
+                    <button onclick="launchWebGame('backgammon')" class="game-card">🎲 Backgammon</button>
+                    <button onclick="launchWebGame('cards')" class="game-card">🎴 Playing Cards (Go Fish/Blackjack)</button>
                 </div>
                 
-                <div id="nativeGameContainer" class="app-content" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
-                    <button class="back-btn" onclick="closeGame()" style="align-self: flex-start; margin-bottom: 20px;">← Back</button>
-                    <h3 id="tttStatus" style="margin-bottom: 15px;">Waiting for opponent...</h3>
-                    <div class="ttt-board" id="tttBoard">
-                        <div class="ttt-cell" onclick="makeMove(0)"></div>
-                        <div class="ttt-cell" onclick="makeMove(1)"></div>
-                        <div class="ttt-cell" onclick="makeMove(2)"></div>
-                        <div class="ttt-cell" onclick="makeMove(3)"></div>
-                        <div class="ttt-cell" onclick="makeMove(4)"></div>
-                        <div class="ttt-cell" onclick="makeMove(5)"></div>
-                        <div class="ttt-cell" onclick="makeMove(6)"></div>
-                        <div class="ttt-cell" onclick="makeMove(7)"></div>
-                        <div class="ttt-cell" onclick="makeMove(8)"></div>
-                    </div>
-                </div>
+                <div id="nativeGameContainer" class="app-content" style="display: none; flex-direction: column; align-items: center;">
+                    <button class="back-btn" onclick="closeGame()" style="align-self: flex-start; margin-bottom: 20px;">← Back to Hub</button>
+                    <h3 id="nativeGameStatus" style="margin-bottom: 15px; text-align: center;">Waiting for opponent...</h3>
+                    <div id="nativeGameBoard"></div> </div>
 
                 <div id="activeGameContainer" class="fullscreen-iframe-container" style="display: none;">
                     <div class="game-top-bar">
                         <button class="back-btn tooltip" data-tooltip="Exit Game" onclick="closeGame()">← Back</button>
-                        <a id="externalGameLink" href="#" target="_blank" class="external-link-btn">Open in Browser (Fix Block)</a>
+                        <a id="externalGameLink" href="#" target="_blank" class="external-link-btn">Open in Browser</a>
                     </div>
                     <iframe id="gameIframe" src="" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div id="notesApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>📝 Notes</h2>
+                    <span style="font-size:10px; color:#555;">(Auto-saves until refresh)</span>
+                </div>
+                <div class="app-content" style="padding:0; display:flex; flex-direction:column;">
+                    <textarea id="notesInput" placeholder="Type your notes here... They will temporarily save while you use the OS." style="flex:1; width:100%; border:none; padding:15px; font-size:14px; resize:none; outline:none; background:#fffdf2; color:#333;"></textarea>
                 </div>
             </div>
 
@@ -236,7 +255,10 @@
                         <select id="bgSelect" class="settings-dropdown">
                             <option value="default">Default Gradient</option>
                             <option value="mountain">Icy Mountain</option>
-                            <option value="cherry">Japanese Cherry Blossoms</option>
+                            <option value="cherry">Real Cherry Blossoms</option>
+                            <option value="pixel">Cute Pixel City (GIF)</option>
+                            <option value="cozy">Cozy Anime Room (GIF)</option>
+                            <option value="cutesky">Cute Pastel Sky</option>
                             <option value="forest">Winter Forest</option>
                             <option value="space">Deep Space</option>
                         </select>
@@ -265,8 +287,9 @@
             </div>
 
             <div class="phone-nav-bar">
+                <button class="tooltip" data-tooltip="Power Off" onclick="togglePower()" style="background:none; border:none; font-size:18px; cursor:pointer; margin-right:15px;">⏻</button>
                 <button class="home-btn tooltip" data-tooltip="Home Screen" onclick="goHome()"></button>
-            </div>
+                <div style="width:30px;"></div> </div>
 
         </div>
     </div>
