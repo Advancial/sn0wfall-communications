@@ -1,162 +1,157 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    maxHttpBufferSize: 1e7 // 10MB limit for media pasting
-});
+const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 app.use(express.json());
 
-// Track online socket connections (username -> socket.id)
+const USERS_FILE = path.join(__dirname, "data", "users.json");
+
+if (!fs.existsSync(path.join(__dirname, "data"))) {
+    fs.mkdirSync(path.join(__dirname, "data"));
+}
+if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+}
+
+function getUsers() {
+    return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+}
+function saveUsers(users) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+// Authentication
+app.post("/api/register", async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Missing fields" });
+
+    const users = getUsers();
+    if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+        return res.status(400).json({ error: "Username taken" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    users.push({ username, password: hashedPassword });
+    saveUsers(users);
+
+    res.json({ success: true });
+});
+
+app.post("/api/login", async (req, res) => {
+    const { username, password } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    res.json({ success: true, username: user.username });
+});
+
+// Connected Users Map (username -> socket.id)
 const connectedUsers = new Map();
-// Track active group chats (groupID -> group details)
-const groupChats = new Map();
+
+// Replace the io.on("connection", ...) block in server.js with this:
 
 io.on("connection", (socket) => {
     let currentUser = null;
+// Add this inside io.on("connection", (socket) => { ... }) in server.js
 
-    // Register User without login requirements
+socket.on("hangup-call", ({ to }) => {
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+        io.to(targetSocketId).emit("call-ended");
+    }
+});
     socket.on("register-socket", (username) => {
         if (!username) return;
-        
-        currentUser = username.trim().slice(0, 25);
-        const key = currentUser.toLowerCase();
-        
-        connectedUsers.set(key, socket.id);
+        currentUser = username;
+        connectedUsers.set(username, socket.id);
         socket.join("global-chat");
-
-        // Broadcast active connected user list
         io.emit("user-list", Array.from(connectedUsers.keys()));
     });
 
-    // Global Chat Messaging
-    socket.on("message", (data) => {
+    // Public Chat (Global ONLY)
+    socket.on("message", (msg) => {
+        // Force the server to attach the verified username
         io.to("global-chat").emit("message", {
-            ...data,
-            id: Date.now().toString(),
-            sender: currentUser || "Anonymous"
+            ...msg,
+            name: currentUser || "Anonymous"
         });
     });
 
-    // Private Direct Messaging
+    // Private Direct Message (DM ONLY - Never sent to global room)
     socket.on("private-message", ({ to, msg }) => {
-        if (!to) return;
-        const targetId = connectedUsers.get(to.trim().toLowerCase());
-        if (targetId && currentUser) {
-            io.to(targetId).emit("private-message", {
+        const targetSocketId = connectedUsers.get(to);
+        if (targetSocketId && currentUser) {
+            const payload = {
                 from: currentUser,
                 to: to,
                 msg: msg
-            });
+            };
+            // Send ONLY to the recipient
+            io.to(targetSocketId).emit("private-message", payload);
         }
     });
 
-    // Group Chat System (Up to 90 Users)
-    socket.on("create-group", ({ groupName, members }) => {
-        const groupId = "group_" + Date.now();
-        const groupMemberList = new Set([currentUser, ...members.map(m => m.trim())]);
-        
-        // Limit total group size to 90 users
-        const finalMembers = Array.from(groupMemberList).slice(0, 90);
-        
-        groupChats.set(groupId, { name: groupName, members: finalMembers });
-
-        finalMembers.forEach(member => {
-            const memberSocketId = connectedUsers.get(member.toLowerCase());
-            if (memberSocketId) {
-                const targetSocket = io.sockets.sockets.get(memberSocketId);
-                if (targetSocket) targetSocket.join(groupId);
-            }
-        });
-
-        io.to(groupId).emit("group-created", { groupId, groupName, members: finalMembers });
-    });
-
-    socket.on("group-message", ({ groupId, msg }) => {
-        io.to(groupId).emit("group-message", {
-            groupId,
-            sender: currentUser,
-            msg,
-            id: Date.now().toString()
-        });
-    });
-
-    // Message Reaction, Edit, and Delete Events
-    socket.on("edit-message", (data) => {
-        io.emit("message-edited", data);
-    });
-
-    socket.on("delete-message", (data) => {
-        io.emit("message-deleted", data);
-    });
-
-    socket.on("react-message", (data) => {
-        io.emit("message-reacted", data);
-    });
-
-    // --- WebRTC Signaling (Calls & Screen Share) ---
-    socket.on("call-user", ({ targetUser, isScreenShare }) => {
-        const targetSocketId = connectedUsers.get(targetUser.trim().toLowerCase());
+    // WebRTC Calling Signals
+    socket.on("call-user", ({ targetUser }) => {
+        const targetSocketId = connectedUsers.get(targetUser);
         if (targetSocketId) {
-            io.to(targetSocketId).emit("incoming-call", { from: currentUser, isScreenShare });
+            io.to(targetSocketId).emit("incoming-call", { from: currentUser });
         }
     });
 
     socket.on("accept-call", ({ to }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
+        const targetSocketId = connectedUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit("call-accepted", { from: currentUser });
         }
     });
 
     socket.on("decline-call", ({ to }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
+        const targetSocketId = connectedUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit("call-declined", { from: currentUser });
         }
     });
 
     socket.on("offer", ({ to, offer }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
+        const targetSocketId = connectedUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit("offer", { from: currentUser, offer });
         }
     });
 
     socket.on("answer", ({ to, answer }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
+        const targetSocketId = connectedUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit("answer", { from: currentUser, answer });
         }
     });
 
     socket.on("ice-candidate", ({ to, candidate }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
+        const targetSocketId = connectedUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit("ice-candidate", { from: currentUser, candidate });
         }
     });
 
-    socket.on("hangup-call", ({ to }) => {
-        const targetSocketId = connectedUsers.get(to.trim().toLowerCase());
-        if (targetSocketId) {
-            io.to(targetSocketId).emit("call-ended");
-        }
-    });
-
-    // Disconnect Handler
     socket.on("disconnect", () => {
         if (currentUser) {
-            connectedUsers.delete(currentUser.toLowerCase());
+            connectedUsers.delete(currentUser);
             io.emit("user-list", Array.from(connectedUsers.keys()));
         }
     });
 });
-
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Snowfall Secrecy 2.0 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
