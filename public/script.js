@@ -2,10 +2,13 @@ const socket = io();
 
 // --- OS & App State ---
 let currentUser = "";
-let activeTarget = "global"; // 'global', 'user_<name>', or 'group_<id>'
+let activeTarget = "global"; 
 let pendingMediaData = null;
 let activeCallPartner = null;
 let isScreenSharing = false;
+
+// Initialize saved contacts from LocalStorage
+let savedContacts = JSON.parse(localStorage.getItem("sn0wfall_contacts") || "[]");
 
 // --- App Navigation ---
 function openApp(appId) {
@@ -13,6 +16,7 @@ function openApp(appId) {
     const target = document.getElementById(appId);
     if (target) target.classList.add("active");
     if(appId === 'catsApp') fetchCat();
+    if(appId === 'contactsApp') renderSavedContacts();
 }
 
 function goHome() {
@@ -26,6 +30,11 @@ document.getElementById("enterAppBtn").onclick = () => {
     if (!val) return alert("Enter a screen name.");
     currentUser = val.slice(0, 25);
     
+    // Easter Egg Check
+    if (currentUser.toLowerCase() === "sinzide") {
+        document.getElementById("secretAppIcon").style.display = "flex";
+    }
+    
     socket.emit("register-socket", currentUser);
     openApp("homeScreen");
 };
@@ -36,6 +45,17 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
+
+// --- Secret Vault Easter Egg Logic ---
+function checkSecretCode() {
+    const code = document.getElementById("secretCode").value;
+    if (code === "sn0w will never fall") {
+        document.getElementById("secretInputDiv").style.display = "none";
+        document.getElementById("secretSuccessDiv").style.display = "block";
+    } else {
+        showToast("Access Denied.");
+    }
+}
 
 // --- Media Pasting & Uploading ---
 document.addEventListener("paste", (e) => {
@@ -92,6 +112,7 @@ function sendMessage() {
         const recipient = activeTarget.replace("user_", "");
         socket.emit("private-message", { to: recipient, msg: payload });
         renderBubble({ sender: currentUser, ...payload }, true);
+        saveContact(recipient); // Save them to recent DMs
     } else if (activeTarget.startsWith("group_")) {
         socket.emit("group-message", { groupId: activeTarget, msg: payload });
     }
@@ -111,6 +132,8 @@ socket.on("private-message", ({ from, msg }) => {
         handleIncomingGameData(from, msg.text);
         return; 
     }
+
+    saveContact(from); // Auto-save incoming DMs to recents
 
     if (activeTarget === `user_${from.toLowerCase()}`) {
         renderBubble({ sender: from, ...msg }, false);
@@ -151,18 +174,57 @@ function renderBubble(msg, isMine) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-// --- Contacts & Group Management ---
+// --- Persistent Contacts & Group Management ---
+function saveContact(username) {
+    if (!savedContacts.includes(username) && username.toLowerCase() !== currentUser.toLowerCase()) {
+        savedContacts.push(username);
+        localStorage.setItem("sn0wfall_contacts", JSON.stringify(savedContacts));
+    }
+}
+
+function clearSavedContacts() {
+    if (confirm("Are you sure you want to clear your saved contacts?")) {
+        savedContacts = [];
+        localStorage.removeItem("sn0wfall_contacts");
+        showToast("Saved contacts cleared.");
+        renderSavedContacts();
+    }
+}
+
+function renderSavedContacts() {
+    const list = document.getElementById("recentContactsList");
+    list.innerHTML = "";
+    if (savedContacts.length === 0) {
+        list.innerHTML = `<p style="padding:10px; color:#999; font-size: 13px;">No recent contacts.</p>`;
+        return;
+    }
+    
+    savedContacts.forEach(u => {
+        list.innerHTML += `<div class="contact-item">
+            <strong>⭐ ${u}</strong>
+            <button onclick="switchChatTarget('user_${u}')" class="primary-btn">DM</button>
+        </div>`;
+    });
+}
+
 socket.on("user-list", (users) => {
     const list = document.getElementById("contactsList");
     list.innerHTML = "";
+    let onlineCount = 0;
+    
     users.forEach(u => {
         if (u.toLowerCase() !== currentUser.toLowerCase()) {
+            onlineCount++;
             list.innerHTML += `<div class="contact-item">
-                <strong>👤 ${u}</strong>
+                <strong>🟢 ${u}</strong>
                 <button onclick="switchChatTarget('user_${u}')" class="primary-btn">DM</button>
             </div>`;
         }
     });
+    
+    if (onlineCount === 0) {
+        list.innerHTML = `<p style="padding:10px; color:#999; font-size: 13px;">Nobody else is online.</p>`;
+    }
 });
 
 document.getElementById("createGroupBtn").onclick = () => {
@@ -183,7 +245,10 @@ socket.on("group-created", ({ groupId, groupName }) => {
 
 function promptNewDM() {
     const target = prompt("Enter exact username to DM:");
-    if(target) switchChatTarget(`user_${target}`);
+    if(target) {
+        saveContact(target);
+        switchChatTarget(`user_${target}`);
+    }
 }
 
 function switchChatTarget(target, nameOverride = "") {
@@ -305,11 +370,20 @@ let tttIsMyTurn = false;
 
 function launchWebGame(gameKey) {
     const urls = {
-        sudoku: "https://sudoku.com/",
         minesweeper: "https://minesweeper.online/",
+        sudoku: "https://sudoku.com/",
         solitaire: "https://solitaires.com/"
     };
+    
     if (!urls[gameKey]) return;
+    
+    // Sudoku and Solitaire explicitly block iframes so we open them in a new tab immediately.
+    if (gameKey === "sudoku" || gameKey === "solitaire") {
+        window.open(urls[gameKey], '_blank');
+        return;
+    }
+    
+    // Minesweeper allows iframes usually
     document.getElementById("arcadeList").style.display = "none";
     document.getElementById("gameIframe").src = urls[gameKey];
     document.getElementById("externalGameLink").href = urls[gameKey];
@@ -410,11 +484,12 @@ function checkTTTWin() {
 }
 
 // --- Settings & UI Logic ---
+// Fixed background URLs to ensure correct images load reliably
 const backgrounds = {
     default: "var(--bg-gradient)",
     mountain: "url('https://images.unsplash.com/photo-1517299321609-52687d1bc55a?w=1080&q=80') center/cover",
-    cherry: "url('https://images.unsplash.com/photo-1493957988430-a5f2e15f39a3?w=1080&q=80') center/cover",
-    forest: "url('https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?w=1080&q=80') center/cover",
+    cherry: "url('https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1080&q=80') center/cover",
+    forest: "url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1080&q=80') center/cover",
     space: "url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1080&q=80') center/cover"
 };
 
