@@ -1,364 +1,421 @@
 const socket = io();
 
-// UI Elements
-const authBox = document.getElementById("authBox");
-const chatBox = document.getElementById("chatBox");
-const authUsername = document.getElementById("authUsername");
-const authPassword = document.getElementById("authPassword");
-const loginBtn = document.getElementById("loginBtn");
-const registerBtn = document.getElementById("registerBtn");
+// --- OS & App State ---
+let currentUser = "";
+let activeTarget = "global"; // 'global', 'user_<name>', or 'group_<id>'
+let pendingMediaData = null;
+let replyTargetMsgId = null;
+let activeCallPartner = null;
+let isScreenSharing = false;
 
-const chat = document.getElementById("chat");
+// Settings State
+let settings = {
+    darkMode: false,
+    autoTranslate: false,
+    disableSnow: false,
+    autoShortenNames: false,
+    bubbleColor: "#9bd7ff",
+    bgColor: "#aacfff"
+};
+
+// --- DOM Elements ---
+const authScreen = document.getElementById("authScreen");
+const homeScreen = document.getElementById("homeScreen");
+const usernameInput = document.getElementById("usernameInput");
+const enterAppBtn = document.getElementById("enterAppBtn");
+const currentTimeEl = document.getElementById("currentTime");
+
+// Chat Elements
 const chatTitle = document.getElementById("chatTitle");
+const chatMessages = document.getElementById("chatMessages");
 const messageInput = document.getElementById("messageInput");
 const mediaInput = document.getElementById("mediaInput");
 const sendBtn = document.getElementById("sendBtn");
+const createGroupBtn = document.getElementById("createGroupBtn");
 const callBtn = document.getElementById("callBtn");
-const dmBtn = document.getElementById("dmBtn");
-const muteBtn = document.getElementById("muteBtn");
-const hangupBtn = document.getElementById("hangupBtn");
 
-const callBanner = document.getElementById("callBanner");
-const callerName = document.getElementById("callerName");
-const acceptCallBtn = document.getElementById("acceptCallBtn");
-const declineCallBtn = document.getElementById("declineCallBtn");
+// Media Preview Elements
+const mediaPreviewContainer = document.getElementById("mediaPreviewContainer");
+const mediaPreviewImg = document.getElementById("mediaPreviewImg");
+const mediaPreviewFilename = document.getElementById("mediaPreviewFilename");
+const cancelMediaPreview = document.getElementById("cancelMediaPreview");
 
-let currentUser = "";
-let activeDmRecipient = null; // null = Global Chat
-let activeCallPartner = null;
-let isMuted = false;
+// Settings Elements
+const darkModeToggle = document.getElementById("darkModeToggle");
+const autoTranslateToggle = document.getElementById("autoTranslateToggle");
+const disableSnowToggle = document.getElementById("disableSnowToggle");
+const autoShortenNamesToggle = document.getElementById("autoShortenNamesToggle");
+const bubbleColorPicker = document.getElementById("bubbleColorPicker");
+const bgColorPicker = document.getElementById("bgColorPicker");
 
-// --- Authentication ---
-loginBtn.onclick = async () => {
-    const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: authUsername.value, password: authPassword.value })
-    });
-    const data = await res.json();
-    if (data.success) {
-        currentUser = data.username;
-        authBox.style.display = "none";
-        chatBox.style.display = "flex";
-        socket.emit("register-socket", currentUser);
-    } else {
-        alert(data.error);
-    }
-};
+// --- Initialization & Clock ---
+function updateClock() {
+    const now = new Date();
+    currentTimeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
 
-registerBtn.onclick = async () => {
-    const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: authUsername.value, password: authPassword.value })
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert("Account created! Please log in.");
-    } else {
-        alert(data.error);
-    }
-};
-
-// --- DM Switcher ---
-dmBtn.onclick = () => {
-    const target = prompt("Enter username for Private DM (Leave blank for Global Chat):");
-    if (target === null) return;
+// --- Username Entry (No Password Required) ---
+enterAppBtn.onclick = () => {
+    const val = usernameInput.value.trim();
+    if (!val) return alert("Please enter a username.");
+    currentUser = val.slice(0, 25);
     
-    if (target.trim() === "") {
-        activeDmRecipient = null;
-        chatTitle.textContent = "❄️ Global Chat";
-    } else {
-        activeDmRecipient = target.trim();
-        chatTitle.textContent = `🔒 DM with ${activeDmRecipient}`;
-    }
-    chat.innerHTML = "";
+    socket.emit("register-socket", currentUser);
+    
+    authScreen.classList.remove("active");
+    homeScreen.classList.add("active");
 };
 
-// --- Message Sending ---
+// --- OS Navigation & Apps ---
+function openApp(appId) {
+    document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
+    const target = document.getElementById(appId);
+    if (target) target.classList.add("active");
+}
+
+function goHome() {
+    document.querySelectorAll(".app-screen").forEach(s => s.classList.remove("active"));
+    homeScreen.classList.add("active");
+}
+
+function powerOffPhone() {
+    if (confirm("Turn off Snowfall OS?")) {
+        window.close();
+        document.body.innerHTML = "<div style='color:white;text-align:center;margin-top:40vh;'><h2>Device Powered Off</h2></div>";
+    }
+}
+
+// --- Image Pasting Preview & Upload Handling ---
+document.addEventListener("paste", (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (const item of items) {
+        if (item.type.indexOf("image") === 0) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                pendingMediaData = {
+                    type: "image",
+                    data: event.target.result
+                };
+                mediaPreviewImg.src = event.target.result;
+                mediaPreviewFilename.textContent = "Pasted_Image.png";
+                mediaPreviewContainer.style.display = "flex";
+            };
+            reader.readAsDataURL(blob);
+        }
+    }
+});
+
+mediaInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    const isVideo = file.type.startsWith("video/");
+    reader.onload = (event) => {
+        pendingMediaData = {
+            type: isVideo ? "video" : "image",
+            data: event.target.result
+        };
+        mediaPreviewImg.src = isVideo ? "" : event.target.result;
+        mediaPreviewFilename.textContent = file.name;
+        mediaPreviewContainer.style.display = "flex";
+    };
+    reader.readAsDataURL(file);
+};
+
+cancelMediaPreview.onclick = () => {
+    pendingMediaData = null;
+    mediaInput.value = "";
+    mediaPreviewContainer.style.display = "none";
+};
+
+// --- Formatting Helper (Auto-Shorten Names) ---
+function formatName(name) {
+    if (settings.autoShortenNames && name.length > 5) {
+        return name.slice(0, 5) + "..";
+    }
+    return name;
+}
+
+// --- Message Dispatching ---
 function sendMessage() {
     const text = messageInput.value.trim();
-    const hasFile = mediaInput.files.length > 0;
+    if (!text && !pendingMediaData) return;
 
-    if (!text && !hasFile) return;
+    const payload = {
+        text,
+        media: pendingMediaData ? pendingMediaData.data : null,
+        mediaType: pendingMediaData ? pendingMediaData.type : null,
+        replyTo: replyTargetMsgId
+    };
 
-    if (hasFile) {
-        const file = mediaInput.files[0];
-        const reader = new FileReader();
-        const isVideo = file.type.startsWith("video/");
-
-        reader.onload = () => {
-            dispatchMessage({
-                type: isVideo ? "video" : "image",
-                media: reader.result,
-                text: text
-            });
-        };
-        reader.readAsDataURL(file);
-        mediaInput.value = "";
-    } else {
-        dispatchMessage({ type: "text", text: text });
+    if (activeTarget === "global") {
+        socket.emit("message", payload);
+    } else if (activeTarget.startsWith("user_")) {
+        const recipient = activeTarget.replace("user_", "");
+        socket.emit("private-message", { to: recipient, msg: payload });
+        renderBubble({ sender: currentUser, ...payload }, true);
+    } else if (activeTarget.startsWith("group_")) {
+        socket.emit("group-message", { groupId: activeTarget, msg: payload });
     }
 
     messageInput.value = "";
-}
-
-function dispatchMessage(msgPayload) {
-    if (activeDmRecipient) {
-        socket.emit("private-message", { to: activeDmRecipient, msg: msgPayload });
-        renderBubble({ name: currentUser, ...msgPayload }, true);
-    } else {
-        socket.emit("message", { name: currentUser, ...msgPayload });
-    }
+    cancelMediaPreview.click();
 }
 
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
+// Socket Message Listeners
 socket.on("message", (msg) => {
-    if (!activeDmRecipient) {
-        renderBubble(msg, msg.name === currentUser);
-    }
+    if (activeTarget === "global") renderBubble(msg, msg.sender === currentUser);
 });
 
 socket.on("private-message", ({ from, msg }) => {
-    if (activeDmRecipient && activeDmRecipient.toLowerCase() === from.toLowerCase()) {
-        renderBubble({ name: from, ...msg }, false);
+    if (activeTarget === `user_${from.toLowerCase()}`) {
+        renderBubble({ sender: from, ...msg }, false);
     } else {
-        alert(`🔒 Private DM received from ${from}! Click "DM" to view.`);
+        showToast(`🔒 Direct message from ${formatName(from)}`);
     }
 });
 
+socket.on("group-message", ({ groupId, sender, msg }) => {
+    if (activeTarget === groupId) {
+        renderBubble({ sender, ...msg }, sender === currentUser);
+    }
+});
+
+// Render Chat Bubble
 function renderBubble(msg, isMine) {
     const bubble = document.createElement("div");
     bubble.className = `bubble ${isMine ? "mine" : "theirs"}`;
+    bubble.dataset.id = msg.id || Date.now();
 
-    let content = `<strong>${msg.name}</strong><br>`;
-    if (msg.type === "image") {
-        content += `<img class="sentImage" src="${msg.media}"><br>`;
-    } else if (msg.type === "video") {
-        content += `<video class="sentVideo" src="${msg.media}" controls></video><br>`;
+    let authorSpan = `<span class="bubble-author">${formatName(msg.sender || "Anon")}</span>`;
+    let content = authorSpan;
+
+    if (msg.media) {
+        if (msg.mediaType === "video") {
+            content += `<video src="${msg.media}" controls style="max-width:100%; border-radius:10px;"></video>`;
+        } else {
+            content += `<img src="${msg.media}" style="max-width:100%; border-radius:10px;">`;
+        }
     }
-    if (msg.text) content += msg.text;
+
+    if (msg.text) {
+        content += `<p class="msg-text">${msg.text}</p>`;
+    }
+
+    // Action overlay (Edit/Delete/React)
+    content += `
+        <div class="msg-actions">
+            <button onclick="reactMsg('${bubble.dataset.id}', '❤️')">❤️</button>
+            <button onclick="reactMsg('${bubble.dataset.id}', '😂')">😂</button>
+            ${isMine ? `<button onclick="editMsg('${bubble.dataset.id}')">✏️</button>` : ""}
+            ${isMine ? `<button onclick="deleteMsg('${bubble.dataset.id}')">🗑️</button>` : ""}
+        </div>
+        <div class="reaction-bar" id="reactions-${bubble.dataset.id}"></div>
+    `;
 
     bubble.innerHTML = content;
-    chat.appendChild(bubble);
-    chat.scrollTop = chat.scrollHeight;
+    chatMessages.appendChild(bubble);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// --- Direct WebRTC Audio Engine ---
+// Group Chat Creation
+createGroupBtn.onclick = () => {
+    const groupName = prompt("Enter Group Name:");
+    if (!groupName) return;
+    const membersInput = prompt("Enter member usernames (comma separated, max 90):");
+    const members = membersInput ? membersInput.split(",") : [];
+    
+    socket.emit("create-group", { groupName, members });
+};
+
+socket.on("group-created", ({ groupId, groupName }) => {
+    showToast(`Group "${groupName}" Created!`);
+});
+
+// --- WebRTC Video & Screen Share Calling Engine ---
 let localStream = null;
 let peer = null;
-let pendingIceCandidates = [];
 
-const rtcConfig = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-    ]
-};
-
-async function getMicrophoneStream() {
-    if (!localStream) {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
-        });
-    }
-    return localStream;
-}
-
-function closeExistingCall() {
-    if (peer) {
-        peer.ontrack = null;
-        peer.onicecandidate = null;
-        peer.close();
-        peer = null;
-    }
-    const existingAudio = document.getElementById("remoteAudio");
-    if (existingAudio) {
-        existingAudio.srcObject = null;
-        existingAudio.remove();
-    }
-    pendingIceCandidates = [];
-}
-
-async function createPeer(targetUser) {
-    closeExistingCall();
-
-    peer = new RTCPeerConnection(rtcConfig);
-
-    peer.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit("ice-candidate", { to: targetUser, candidate: event.candidate });
-        }
-    };
-
-    peer.ontrack = (event) => {
-        let audio = document.getElementById("remoteAudio");
-        if (!audio) {
-            audio = document.createElement("audio");
-            audio.id = "remoteAudio";
-            audio.autoplay = true;
-            audio.playsInline = true;
-            document.body.appendChild(audio);
-        }
-
-        const remoteStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
-        audio.srcObject = remoteStream;
-        
-        audio.play().catch(err => {
-            console.warn("Autoplay interaction blocked:", err);
-        });
-    };
-
-    // Safe track addition: verify track isn't already attached to senders
-    const stream = await getMicrophoneStream();
-    const senders = peer.getSenders();
-
-    stream.getAudioTracks().forEach(track => {
-        const trackAlreadyAdded = senders.some(sender => sender.track === track);
-        if (!trackAlreadyAdded) {
-            peer.addTrack(track, stream);
-        }
-    });
-
-    return peer;
-}
-
-async function processPendingCandidates() {
-    while (pendingIceCandidates.length > 0) {
-        const candidate = pendingIceCandidates.shift();
-        try {
-            await peer.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-            console.error("ICE error:", err);
-        }
-    }
-}
-
-// --- Call Controls & UI ---
-function showCallActiveUI() {
-    muteBtn.style.display = "inline-block";
-    hangupBtn.style.display = "inline-block";
-    callBtn.style.display = "none";
-}
-
-function endCall(notifyPartner = true) {
-    if (notifyPartner && activeCallPartner) {
-        socket.emit("hangup-call", { to: activeCallPartner });
-    }
-
-    closeExistingCall();
-
-    activeCallPartner = null;
-    isMuted = false;
-    if (localStream && localStream.getAudioTracks()[0]) {
-        localStream.getAudioTracks()[0].enabled = true;
-    }
-    
-    muteBtn.style.display = "none";
-    hangupBtn.style.display = "none";
-    muteBtn.textContent = "🎙️ Mute";
-    callBtn.style.display = "inline-block";
-}
-
-muteBtn.onclick = () => {
-    if (!localStream) return;
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (audioTrack) {
-        isMuted = !isMuted;
-        audioTrack.enabled = !isMuted;
-        muteBtn.textContent = isMuted ? "🔇 Unmute" : "🎙️ Mute";
-    }
-};
-
-hangupBtn.onclick = () => {
-    endCall(true);
-};
-
-callBtn.onclick = async () => {
+async function startCall(isScreen = false) {
     const target = prompt("Enter username to call:");
     if (!target) return;
     activeCallPartner = target;
-    socket.emit("call-user", { targetUser: target });
+    isScreenSharing = isScreen;
+
+    try {
+        if (isScreen) {
+            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        } else {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        }
+        document.getElementById("localVideo").srcObject = localStream;
+        document.getElementById("callOverlay").style.display = "flex";
+        socket.emit("call-user", { targetUser: target, isScreenShare: isScreen });
+    } catch (err) {
+        alert("Camera/Microphone/Screen access denied or unavailable.");
+    }
+}
+
+callBtn.onclick = () => startCall(false);
+document.getElementById("shareScreenBtn").onclick = () => startCall(true);
+
+document.getElementById("hangupBtn").onclick = () => {
+    if (activeCallPartner) socket.emit("hangup-call", { to: activeCallPartner });
+    closeCall();
 };
 
-acceptCallBtn.onclick = async () => {
-    callBanner.style.display = "none";
-    showCallActiveUI();
+function closeCall() {
+    if (peer) peer.close();
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    document.getElementById("callOverlay").style.display = "none";
+    activeCallPartner = null;
+}
+
+socket.on("incoming-call", ({ from }) => {
+    activeCallPartner = from;
+    document.getElementById("callerName").textContent = formatName(from);
+    document.getElementById("callBanner").style.display = "flex";
+});
+
+document.getElementById("acceptCallBtn").onclick = async () => {
+    document.getElementById("callBanner").style.display = "none";
+    document.getElementById("callOverlay").style.display = "flex";
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById("localVideo").srcObject = localStream;
     socket.emit("accept-call", { to: activeCallPartner });
 };
 
-declineCallBtn.onclick = () => {
-    callBanner.style.display = "none";
+document.getElementById("declineCallBtn").onclick = () => {
+    document.getElementById("callBanner").style.display = "none";
     socket.emit("decline-call", { to: activeCallPartner });
     activeCallPartner = null;
-    closeExistingCall();
 };
-
-// --- WebRTC Signaling Events ---
-socket.on("incoming-call", ({ from }) => {
-    activeCallPartner = from;
-    callerName.textContent = from;
-    callBanner.style.display = "flex";
-});
-
-socket.on("call-accepted", async ({ from }) => {
-    showCallActiveUI();
-    await createPeer(from);
-    const offer = await peer.createOffer({ offerToReceiveAudio: true });
-    await peer.setLocalDescription(offer);
-    socket.emit("offer", { to: from, offer });
-});
 
 socket.on("call-ended", () => {
     alert("Call ended by partner.");
-    endCall(false);
+    closeCall();
 });
 
-socket.on("offer", async ({ from, offer }) => {
-    await createPeer(from);
-    await peer.setRemoteDescription(new RTCSessionDescription(offer));
-    await processPendingCandidates();
-
-    const answer = await peer.createAnswer({ offerToReceiveAudio: true });
-    await peer.setLocalDescription(answer);
-    socket.emit("answer", { to: from, answer });
-});
-
-socket.on("answer", async ({ answer }) => {
-    if (peer && peer.signalingState === "have-local-offer") {
-        await peer.setRemoteDescription(new RTCSessionDescription(answer));
-        await processPendingCandidates();
-    }
-});
-
-socket.on("ice-candidate", async ({ candidate }) => {
-    if (peer && peer.remoteDescription && peer.remoteDescription.type) {
-        try {
-            await peer.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-            console.error("Candidate add error:", err);
+// --- Contacts App Population ---
+socket.on("user-list", (users) => {
+    const list = document.getElementById("contactsList");
+    list.innerHTML = "";
+    users.forEach(u => {
+        if (u.toLowerCase() !== currentUser.toLowerCase()) {
+            const item = document.createElement("div");
+            item.style.cssText = "padding: 10px; background: white; border-radius: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;";
+            item.innerHTML = `
+                <strong>${formatName(u)}</strong>
+                <button onclick="switchChatTarget('user_${u}')" style="background:#8ccfff; border:none; padding:6px 12px; border-radius:12px; color:white; cursor:pointer;">DM</button>
+            `;
+            list.appendChild(item);
         }
-    } else {
-        pendingIceCandidates.push(candidate);
-    }
+    });
 });
 
-// --- Snow Effect ---
+function switchChatTarget(target) {
+    activeTarget = target;
+    chatMessages.innerHTML = "";
+    if (target === "global") {
+        chatTitle.textContent = "❄️ Global Chat";
+    } else if (target.startsWith("user_")) {
+        chatTitle.textContent = `🔒 DM: ${formatName(target.replace("user_", ""))}`;
+    }
+    openApp("chatApp");
+}
+
+// --- Arcade Games Logic ---
+function launchGame(gameId) {
+    document.getElementById("activeGameContainer").style.display = "block";
+    const board = document.getElementById("gameBoard");
+    board.innerHTML = `<h3>Playing ${gameId.toUpperCase()}</h3><div style="padding:20px; text-align:center;">Game Board initialized. Ready to play!</div>`;
+}
+
+function closeGame() {
+    document.getElementById("activeGameContainer").style.display = "none";
+}
+
+// --- Cute Cats Feed ---
+async function fetchNewCat() {
+    const gallery = document.getElementById("catGallery");
+    gallery.innerHTML = "<p>Loading cute cats...</p>";
+    try {
+        const res = await fetch("https://api.thecatapi.com/v1/images/search?limit=3");
+        const data = await res.json();
+        gallery.innerHTML = "";
+        data.forEach(item => {
+            const img = document.createElement("img");
+            img.src = item.url;
+            img.style.cssText = "width:100%; border-radius:14px; margin-bottom:10px;";
+            gallery.appendChild(img);
+        });
+    } catch {
+        gallery.innerHTML = "<p>Failed to load cat pictures.</p>";
+    }
+}
+
+// --- Calculator Logic ---
+function calcInput(val) {
+    const disp = document.getElementById("calcDisplay");
+    if (disp.value === "0" || disp.value === "Error") disp.value = "";
+    if (val === "C") { disp.value = "0"; return; }
+    disp.value += val;
+}
+
+function calcEquals() {
+    const disp = document.getElementById("calcDisplay");
+    try {
+        disp.value = eval(disp.value);
+    } catch {
+        disp.value = "Error";
+    }
+}
+
+// --- Settings Handlers ---
+darkModeToggle.onchange = (e) => {
+    document.body.style.background = e.target.checked ? "#121212" : "var(--bg-gradient)";
+};
+
+disableSnowToggle.onchange = (e) => {
+    document.getElementById("snow").style.display = e.target.checked ? "none" : "block";
+};
+
+autoShortenNamesToggle.onchange = (e) => {
+    settings.autoShortenNames = e.target.checked;
+};
+
+bubbleColorPicker.oninput = (e) => {
+    document.documentElement.style.setProperty("--bubble-mine", e.target.value);
+};
+
+bgColorPicker.oninput = (e) => {
+    document.body.style.background = e.target.value;
+};
+
+// Toast Notifications
+function showToast(msg) {
+    const toast = document.getElementById("toastNotification");
+    toast.textContent = msg;
+    toast.style.display = "block";
+    setTimeout(() => { toast.style.display = "none"; }, 3000);
+}
+
+// Snow Effect Generation
 const snow = document.getElementById("snow");
-const flakes = ["❄", "❅", "❆", "✦"];
-for (let i = 0; i < 45; i++) {
+const flakes = ["❄", "❅", "❆"];
+for (let i = 0; i < 35; i++) {
     const flake = document.createElement("div");
     flake.className = "snowflake";
     flake.textContent = flakes[Math.floor(Math.random() * flakes.length)];
     flake.style.left = Math.random() * 100 + "%";
-    flake.style.fontSize = (Math.random() * 18 + 10) + "px";
-    flake.style.animationDuration = (Math.random() * 12 + 8) + "s";
-    flake.style.animationDelay = (-Math.random() * 20) + "s";
+    flake.style.fontSize = (Math.random() * 16 + 10) + "px";
+    flake.style.animationDuration = (Math.random() * 10 + 6) + "s";
+    flake.style.animationDelay = (-Math.random() * 10) + "s";
     snow.appendChild(flake);
 }
