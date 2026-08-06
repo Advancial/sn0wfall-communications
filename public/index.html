@@ -2,56 +2,301 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>❄️ Snowfall Secrecy</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snowfall Secrecy 2.0</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
 </head>
-<body>
+<body class="theme-default">
 
-<div id="snow"></div>
+    <div id="snow"></div>
 
-<div id="callBanner" class="call-banner" style="display: none;">
-    <p><strong id="callerName">User</strong> is calling...</p>
-    <div class="banner-buttons">
-        <button id="acceptCallBtn">Accept</button>
-        <button id="declineCallBtn" class="decline">Decline</button>
-    </div>
-</div>
+    <div class="phone-wrapper">
+        <div class="phone-screen">
+            
+            <div class="status-bar">
+                <span id="currentTime">12:00</span>
+                <div class="status-icons">
+                    <span title="Signal Strength">📶</span>
+                    <span title="Wi-Fi Connected">📶</span>
+                    <span title="Battery">🔋 100%</span>
+                </div>
+            </div>
 
-<div class="container">
-    <div id="authBox">
-        <h1>❄️ Snowfall Secrecy</h1>
-        <input id="authUsername" placeholder="Username">
-        <input id="authPassword" type="password" placeholder="Password">
-        <div class="auth-buttons">
-            <button id="loginBtn">Log In</button>
-            <button id="registerBtn">Register</button>
+            <div id="callOverlay" class="call-overlay" style="display: none;">
+                <div class="call-header">
+                    <span id="callPartnerName">User</span>
+                    <span id="callStatus">In Call</span>
+                </div>
+                <div class="video-grid">
+                    <video id="localVideo" autoplay playsinline muted></video>
+                    <video id="remoteVideo" autoplay playsinline></video>
+                </div>
+                <div class="call-controls">
+                    <button id="muteBtn" class="tooltip" data-tooltip="Toggle Microphone">🎙️</button>
+                    <button id="shareScreenBtn" class="tooltip" data-tooltip="Share Screen">🖥️</button>
+                    <button id="hangupBtn" class="decline-btn tooltip" data-tooltip="End Call">❌</button>
+                </div>
+            </div>
+
+            <div id="callBanner" class="call-banner" style="display: none;">
+                <p><strong id="callerName">User</strong> is calling...</p>
+                <div class="banner-buttons">
+                    <button id="acceptCallBtn" class="tooltip" data-tooltip="Accept Call">📞 Accept</button>
+                    <button id="declineCallBtn" class="decline-btn tooltip" data-tooltip="Decline Call">❌ Decline</button>
+                </div>
+            </div>
+
+            <div id="toastNotification" class="toast-notification" style="display: none;"></div>
+
+            <div id="authScreen" class="app-screen active">
+                <div class="auth-card">
+                    <h1>❄️ Snowfall</h1>
+                    <p>Enter a temporary screen name to enter (Up to 25 characters)</p>
+                    <input id="usernameInput" type="text" maxlength="25" placeholder="Enter username...">
+                    <button id="enterAppBtn" class="primary-btn tooltip" data-tooltip="Enter Snowfall OS">Enter OS</button>
+                </div>
+            </div>
+
+            <div id="homeScreen" class="app-screen">
+                <div class="app-grid">
+                    <div class="app-icon tooltip" data-tooltip="Messages & Groups" onclick="openApp('chatApp')">
+                        <div class="icon-box chat-icon">💬</div>
+                        <span>Messages</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Contacts List" onclick="openApp('contactsApp')">
+                        <div class="icon-box contacts-icon">🎴</div>
+                        <span>Contacts</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Multiplayer Games" onclick="openApp('gamesApp')">
+                        <div class="icon-box games-icon">🎮</div>
+                        <span>Games</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Cat Gallery" onclick="openApp('catsApp')">
+                        <div class="icon-box cats-icon">🐱</div>
+                        <span>Cute Cats</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Google Translate" onclick="openApp('translateApp')">
+                        <div class="icon-box translate-icon">🌐</div>
+                        <span>Translate</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Calculator" onclick="openApp('calcApp')">
+                        <div class="icon-box calc-icon">🧮</div>
+                        <span>Calculator</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Quick Notes" onclick="openApp('notesApp')">
+                        <div class="icon-box notes-icon">📝</div>
+                        <span>Notes</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Watch TV" onclick="openApp('tvApp')">
+                        <div class="icon-box tv-icon">📺</div>
+                        <span>TV Stream</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="Watch Anime" onclick="openApp('animeApp')">
+                        <div class="icon-box anime-icon">⛩️</div>
+                        <span>Anime</span>
+                    </div>
+                    <div class="app-icon tooltip" data-tooltip="System Settings" onclick="openApp('settingsApp')">
+                        <div class="icon-box settings-icon">⚙️</div>
+                        <span>Settings</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chatApp" class="app-screen app-window">
+                <div class="app-header">
+                    <button class="back-btn tooltip" data-tooltip="Back to Global Chat" onclick="switchChatTarget('global')">🌐 Global</button>
+                    <h2 id="chatTitle">❄️ Global Chat</h2>
+                    <div class="header-actions">
+                        <button id="createGroupBtn" class="tooltip" data-tooltip="Create Group (Up to 90 Users)">👥</button>
+                        <button id="callBtn" class="tooltip" data-tooltip="Start Voice/Video Call">📞</button>
+                    </div>
+                </div>
+
+                <div id="chatMessages" class="chat-messages"></div>
+
+                <div id="mediaPreviewContainer" class="media-preview-container" style="display: none;">
+                    <span id="mediaPreviewFilename">image.png</span>
+                    <img id="mediaPreviewImg" src="" alt="Preview">
+                    <button id="cancelMediaPreview" class="tooltip" data-tooltip="Remove Image">✖</button>
+                </div>
+
+                <div id="replyBar" class="reply-bar" style="display: none;">
+                    <span id="replyingToText">Replying to...</span>
+                    <button id="cancelReplyBtn">✖</button>
+                </div>
+
+                <div class="chat-footer">
+                    <label for="mediaInput" class="media-upload-label tooltip" data-tooltip="Attach Photo/Video">📷</label>
+                    <input id="mediaInput" type="file" accept="image/*,video/*" style="display: none;">
+                    <input id="messageInput" type="text" placeholder="Type a message or paste an image...">
+                    <button id="sendBtn" class="tooltip" data-tooltip="Send Message">➤</button>
+                </div>
+            </div>
+
+            <div id="contactsApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>🎴 Contacts</h2>
+                </div>
+                <div class="app-content">
+                    <div id="contactsList" class="list-group">
+                        </div>
+                </div>
+            </div>
+
+            <div id="gamesApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>🎮 Arcade Hub</h2>
+                </div>
+                <div class="app-content grid-content">
+                    <button onclick="launchGame('tictactoe')" class="game-card">⭕ Tic Tac Toe</button>
+                    <button onclick="launchGame('coinflip')" class="game-card">🪙 Coin Flip</button>
+                    <button onclick="launchGame('connectdots')" class="game-card">✏️ Connect Dots</button>
+                    <button onclick="launchGame('sudoku')" class="game-card">🔢 Sudoku</button>
+                    <button onclick="launchGame('wordle')" class="game-card">🔤 Wordle</button>
+                    <button onclick="launchGame('uno')" class="game-card">🎴 UNO</button>
+                    <button onclick="launchGame('checkers')" class="game-card">🔴 Checkers</button>
+                    <button onclick="launchGame('chess')" class="game-card">♟️ Chess</button>
+                    <button onclick="launchGame('gofish')" class="game-card">🐟 Go Fish</button>
+                    <button onclick="launchGame('blackjack')" class="game-card">🃏 Blackjack</button>
+                    <button onclick="launchGame('kingscorners')" class="game-card">👑 Kings Corners</button>
+                    <button onclick="launchGame('backgammon')" class="game-card">🎲 Backgammon</button>
+                    <button onclick="launchGame('liarsuno')" class="game-card">🤥 Liar's UNO</button>
+                    <button onclick="launchGame('connect4')" class="game-card">🟡 Connect 4</button>
+                    <button onclick="launchGame('sorry')" class="game-card">🎯 Sorry!</button>
+                    <button onclick="launchGame('battleship')" class="game-card">🚢 Battleship</button>
+                    <button onclick="launchGame('crosswords')" class="game-card">🧩 Crosswords</button>
+                </div>
+                <div id="activeGameContainer" class="game-container" style="display: none;">
+                    <button class="back-btn" onclick="closeGame()">← Back to Arcade</button>
+                    <div id="gameBoard"></div>
+                </div>
+            </div>
+
+            <div id="catsApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>🐱 Cat Feed</h2>
+                    <button onclick="fetchNewCat()" class="tooltip" data-tooltip="Fetch New Cat">🔄 More Cats</button>
+                </div>
+                <div class="app-content">
+                    <div id="catGallery" class="cat-gallery"></div>
+                </div>
+            </div>
+
+            <div id="translateApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>🌐 Translator</h2>
+                </div>
+                <div class="app-content">
+                    <textarea id="transInput" placeholder="Type text here to translate..."></textarea>
+                    <select id="transTargetLang">
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="ja">Japanese</option>
+                        <option value="zh">Chinese</option>
+                    </select>
+                    <button id="translateBtn" class="primary-btn">Translate</button>
+                    <div id="transOutput" class="output-box">Translation will appear here...</div>
+                </div>
+            </div>
+
+            <div id="calcApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>🧮 Calculator</h2>
+                </div>
+                <div class="app-content calc-wrapper">
+                    <input type="text" id="calcDisplay" disabled value="0">
+                    <div class="calc-grid">
+                        <button onclick="calcInput('C')">C</button>
+                        <button onclick="calcInput('/')">/</button>
+                        <button onclick="calcInput('*')">*</button>
+                        <button onclick="calcInput('-')">-</button>
+                        <button onclick="calcInput('7')">7</button>
+                        <button onclick="calcInput('8')">8</button>
+                        <button onclick="calcInput('9')">9</button>
+                        <button onclick="calcInput('+')">+</button>
+                        <button onclick="calcInput('4')">4</button>
+                        <button onclick="calcInput('5')">5</button>
+                        <button onclick="calcInput('6')">6</button>
+                        <button onclick="calcEquals()" class="span-two">=</button>
+                        <button onclick="calcInput('1')">1</button>
+                        <button onclick="calcInput('2')">2</button>
+                        <button onclick="calcInput('3')">3</button>
+                        <button onclick="calcInput('0')">0</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="notesApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>📝 Quick Notes</h2>
+                </div>
+                <div class="app-content">
+                    <textarea id="notesArea" placeholder="Type your notes here... (Saved automatically)"></textarea>
+                </div>
+            </div>
+
+            <div id="tvApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>📺 TV Portal</h2>
+                    <a href="https://ww1.goojara.to/" target="_blank" class="external-link-btn">Open External ↗</a>
+                </div>
+                <div class="app-content iframe-container">
+                    <iframe src="https://ww1.goojara.to/" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div id="animeApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>⛩️ Anime Portal</h2>
+                    <a href="https://wco.tv/" target="_blank" class="external-link-btn">Open External ↗</a>
+                </div>
+                <div class="app-content iframe-container">
+                    <iframe src="https://wco.tv/" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div id="settingsApp" class="app-screen app-window">
+                <div class="app-header">
+                    <h2>⚙️ Settings</h2>
+                </div>
+                <div class="app-content">
+                    <div class="setting-item">
+                        <label>Dark Mode</label>
+                        <input type="checkbox" id="darkModeToggle">
+                    </div>
+                    <div class="setting-item">
+                        <label>Auto-Translate Incoming Messages</label>
+                        <input type="checkbox" id="autoTranslateToggle">
+                    </div>
+                    <div class="setting-item">
+                        <label>Disable Snow Animation</label>
+                        <input type="checkbox" id="disableSnowToggle">
+                    </div>
+                    <div class="setting-item">
+                        <label>Auto-Shorten Long Names (5 chars + ..)</label>
+                        <input type="checkbox" id="autoShortenNamesToggle">
+                    </div>
+                    <div class="setting-item flex-col">
+                        <label>Custom Chat Bubble Color</label>
+                        <input type="color" id="bubbleColorPicker" value="#9bd7ff">
+                    </div>
+                    <div class="setting-item flex-col">
+                        <label>Custom Background Gradient/Color</label>
+                        <input type="color" id="bgColorPicker" value="#aacfff">
+                    </div>
+                </div>
+            </div>
+
+            <div class="phone-nav-bar">
+                <button id="homeButton" class="home-btn tooltip" data-tooltip="Home Screen" onclick="goHome()"></button>
+                <button id="powerOffBtn" class="power-btn tooltip" data-tooltip="Turn Off OS" onclick="powerOffPhone()">🔴</button>
+            </div>
+
         </div>
     </div>
 
-    <div id="chatBox" style="display: none;">
-<header>
-    <h1 id="chatTitle">❄️ Global Chat</h1>
-    <div class="header-actions">
-        <button id="dmBtn">💬 DM</button>
-        <button id="callBtn">📞 Call</button>
-        <button id="muteBtn" style="display: none;">🎙️ Mute</button>
-        <button id="hangupBtn" style="display: none; background: #ff8c8c;">❌ End</button>
-    </div>
-</header>
-
-        <main id="chat"></main>
-
-        <footer>
-            <input id="mediaInput" type="file" accept="image/*,video/*">
-            <input id="messageInput" placeholder="Message...">
-            <button id="sendBtn">➤</button>
-        </footer>
-    </div>
-</div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="script.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
