@@ -83,13 +83,6 @@ body {
     transition: background 0.3s ease, filter 0.3s ease;
 }
 
-.power-off-screen {
-    position: absolute;
-    inset: 0;
-    background: #000;
-    z-index: 99999;
-}
-
 /* --- Status Bar --- */
 .status-bar {
     height: 28px;
@@ -420,13 +413,12 @@ video {
     background: #ffffff;
     border: 1px solid #dcdcdc;
     border-radius: 16px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
     color: #1c2e4a;
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     transition: transform 0.1s ease;
-    text-align: center;
 }
 
 .game-card:hover {
@@ -442,7 +434,7 @@ video {
     align-items: center;
 }
 
-/* Native Multiplayer Games CSS */
+/* Multiplayer Tic Tac Toe Native */
 .ttt-board {
     display: grid;
     grid-template-columns: repeat(3, 80px);
@@ -463,42 +455,8 @@ video {
     border-radius: 8px;
     color: #2c3e50;
 }
-.ttt-cell:hover { background: #bdc3c7; }
-
-.c4-board {
-    display: grid;
-    grid-template-columns: repeat(7, 40px);
-    grid-template-rows: repeat(6, 40px);
-    gap: 5px;
-    background: #3498db;
-    padding: 10px;
-    border-radius: 12px;
-}
-.c4-cell {
-    background: #ecf0f1;
-    border-radius: 50%;
-    cursor: pointer;
-}
-.c4-cell.red { background: #e74c3c; }
-.c4-cell.yellow { background: #f1c40f; }
-
-.coin-flip-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-}
-.coin-graphic {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: gold;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    font-weight: bold;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+.ttt-cell:hover {
+    background: #bdc3c7;
 }
 
 /* --- Calculator App --- */
@@ -560,14 +518,13 @@ video {
 
 /* --- Phone Hardware Navigation Bar --- */
 .phone-nav-bar {
-    height: 45px;
+    height: 35px;
     background: #ffffff;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     position: relative;
     border-top: 1px solid #eee;
-    padding: 0 15px;
 }
 
 .home-btn {
@@ -648,9 +605,9 @@ body.ui-dark-mode .chat-footer {
     background: #1e1e1e;
     border-top: 1px solid #333;
 }
-body.ui-dark-mode .chat-footer input, body.ui-dark-mode #notesInput {
-    background: #333 !important;
-    color: #fff !important;
+body.ui-dark-mode .chat-footer input {
+    background: #333;
+    color: #fff;
     border-color: #555;
 }
 body.ui-dark-mode .app-icon span {
@@ -674,10 +631,6 @@ body.ui-dark-mode .phone-nav-bar {
 body.ui-dark-mode .home-btn {
     background: #888;
 }
-body.ui-dark-mode .contact-item {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.1);
-}
 
 /* --- Contacts List --- */
 .contact-item {
@@ -689,6 +642,10 @@ body.ui-dark-mode .contact-item {
     justify-content: space-between;
     align-items: center;
     border: 1px solid rgba(0,0,0,0.05);
+}
+body.ui-dark-mode .contact-item {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
 }
 
 .section-title {
