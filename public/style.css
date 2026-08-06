@@ -434,6 +434,31 @@ video {
     align-items: center;
 }
 
+/* Multiplayer Tic Tac Toe Native */
+.ttt-board {
+    display: grid;
+    grid-template-columns: repeat(3, 80px);
+    grid-template-rows: repeat(3, 80px);
+    gap: 5px;
+    background: #2c3e50;
+    padding: 5px;
+    border-radius: 12px;
+}
+.ttt-cell {
+    background: #ecf0f1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px;
+    color: #2c3e50;
+}
+.ttt-cell:hover {
+    background: #bdc3c7;
+}
+
 /* --- Calculator App --- */
 .calc-wrapper {
     display: flex;
